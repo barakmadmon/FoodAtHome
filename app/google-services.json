@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "1096691556302",
+    "project_id": "food-at-home-01",
+    "storage_bucket": "food-at-home-01.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1096691556302:android:a1bf17a2ba8b490a81159f",
+        "android_client_info": {
+          "package_name": "com.example.foodathome"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDZxlDjO95eXpjzjIS1fMGalxVLBRWfQek"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1096691556302:android:3f1b7cc0e772dc4281159f",
+        "android_client_info": {
+          "package_name": "com.example.myapplication"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDZxlDjO95eXpjzjIS1fMGalxVLBRWfQek"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
