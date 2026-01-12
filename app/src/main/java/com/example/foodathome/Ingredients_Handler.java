@@ -39,8 +39,9 @@ public class Ingredients_Handler {
 
     public static void updateIngredientWeight(Recipe recipe)
     {
+        Log.i("myComments", recipe.toString());
         //Handler mainHandler = new Handler(Looper.getMainLooper());
-        String request = "please answer me in the given format: each ingridient has a given name and amount, for each ingredient answer me how much it'll weight in grams.if the ingredient is a liquid give me amount in ml.answer me with a json format 'ingridient_name' : 'weight in grams' (amount will be given as string for example- 'tomato': '3 medium' will become 'tomato' : '400'). do not respond with any other output except from the json itself";
+        String request = "please answer me in the given format: each ingridient has a given name and amount, for each ingredient answer me how much it'll weight in grams.if the ingredient is a liquid give me amount in ml. answer me with a json format 'ingridient_name' : 'weight/volume', the 'weight/volume' will only include the number without measure unit (amount will be given as string for example- 'tomato': '3 medium' will become 'tomato' : '400'. or 'water': '400 ml' will become 'water' : '400' ). do not respond with any other output except from the json itself";
         request += " here is the list of items:\n";
         for(Map.Entry<Ingredient, String> ingredient : recipe.getIngredients().entrySet()) {
             if(ingredient.getKey().getId().isEmpty())
@@ -51,10 +52,14 @@ public class Ingredients_Handler {
         Log.i("myComments", request);
         AiHandler.AIClient.askGemini(request, response -> {
             JSONObject jsonIngrdients;
-            response = response.replace("json", "");
-            response = response.replace("```", "");
-            Log.i("myComments", response);
+
             try {
+                if( response == null  || response.isEmpty())
+                    throw(new RuntimeException("empty response"));
+
+                response = response.replace("json", "");
+                response = response.replace("```", "");
+                Log.i("myComments", response);
                 jsonIngrdients = new JSONObject(response);
                 java.util.Iterator<String> keys = jsonIngrdients.keys();
                 Iterator<Ingredient> iterator = recipe.getIngredients().keySet().iterator();
@@ -65,7 +70,6 @@ public class Ingredients_Handler {
                     Ingredient ingredient = iterator.next();
                     ingredient.setAmount(Float.parseFloat(jsonIngrdients.get(key).toString()));
                 }
-
             } catch (JSONException e) {
                 Log.i("myComments", e.toString());
             } finally {
@@ -92,14 +96,17 @@ public class Ingredients_Handler {
         try {
             FirebaseDataHandler.ingredientSem.acquire();
             for (Ingredient ingredient : ingredients) {
-                if (ingredient.getId() == null)
+                if (ingredient.getId() == null || ingredient.getId().isEmpty())
                     newIngredients.add(ingredient);
+                else
+                    Log.i("myComments",ingredient.getId());
             }
         } catch (Exception e) {
             Log.i("myComments", e.toString());
         }
 
         if(!newIngredients.isEmpty()) {
+            Log.i("myComments", "new ingredients");
             searchIngredients(newIngredients);
             try { // no finally becuase ingSem is also released when there no new ingredients
                 aiSem.acquire();

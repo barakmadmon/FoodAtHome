@@ -4,12 +4,10 @@ import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.Exclude;
 
 public class Ingredient {
-    @Exclude
     private String id;
     private String name;
     private float price;
     private float unitSize;
-    @Exclude
     private float amount;
 
 
@@ -20,6 +18,7 @@ public class Ingredient {
         this.price = 0;
         this.unitSize = 0;
         this.amount = 0;
+        this.id = "";
     }
 
     public Ingredient(String name,float price,float unitSize) {
@@ -27,6 +26,7 @@ public class Ingredient {
         this.price = price;
         this.unitSize = unitSize;
         this.amount = 0;
+        this.id = "";
     }
 
     public void copy(Ingredient ingredient) {
@@ -36,11 +36,15 @@ public class Ingredient {
         this.unitSize = ingredient.unitSize;
         this.amount = ingredient.amount;
     }
+
+    @Exclude
     public String getId() {return id;}
     public void setId(String id) {this.id =id;}
     public String getName() { return name; }
     public float getPrice() { return price; }
     public void setPrice(float price) { this.price=price; }
+
+    @Exclude
     public float getAmount() { return  amount; }
     public void setAmount(float amount) { this.amount = amount; }
     public float getUnitSize() { return this.unitSize; }

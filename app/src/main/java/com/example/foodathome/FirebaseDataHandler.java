@@ -47,7 +47,7 @@ public class FirebaseDataHandler {
             List<String>nameChunk = names.subList(i, Math.min(names.size(), i + BATCH_SIZE));
 
             db.collection(INGREDIENT_COLLECTION)
-                    .whereIn("Name",nameChunk)
+                    .whereIn("name",nameChunk)
                     .get()
                     .addOnSuccessListener((QuerySnapshot qs) -> {
                         for (DocumentSnapshot doc : qs.getDocuments()) {
@@ -60,7 +60,7 @@ public class FirebaseDataHandler {
                             WriteBatch batch = db.batch();
 
                             for (Ingredient ing : ingredients) {
-                                if (!existingNames.contains(ing.getName())) {
+                                if (!(existingNames.contains(ing.getName()))) {
                                     DocumentReference newDoc = db.collection(INGREDIENT_COLLECTION).document();
                                     batch.set(newDoc, ing);
                                 }
@@ -83,7 +83,6 @@ public class FirebaseDataHandler {
                 ingredientMap.put(ing.getId(), ing);
             else
                 ingredientMap.put(ing.getName(), ing);
-            Log.i("myComments", ing.getName());
         }
 
         ingrdientIDS = new ArrayList<>(ingredientMap.keySet());
@@ -91,16 +90,12 @@ public class FirebaseDataHandler {
             List<String> idChunk = ingrdientIDS.subList(i, Math.min(ingrdientIDS.size(), i + BATCH_SIZE));
 
             Query q;
-//            if(recipe) {
-//                q =  db.collection(INGREDIENT_COLLECTION).whereIn(FieldPath.documentId(), idChunk);
-//            }
-//            else {
-//                q =  db.collection(INGREDIENT_COLLECTION).whereIn("Name", idChunk);
-//            }
-            db = FirebaseFirestore.getInstance();
-            q =  db.collection(INGREDIENT_COLLECTION);
-
-            Log.i("myComments", q.toString());
+            if(recipe) {
+                q =  db.collection(INGREDIENT_COLLECTION).whereIn(FieldPath.documentId(), idChunk);
+            }
+            else {
+                 q =  db.collection(INGREDIENT_COLLECTION).whereIn("name", idChunk);
+            }
 
             q.get().addOnSuccessListener((QuerySnapshot qs) -> {
                 Log.i("myComments", "getting ingredients");
@@ -114,7 +109,9 @@ public class FirebaseDataHandler {
                         ingredientMap.get(temp.getId()).setAmount(g);
                     }
                     else {
-                        ingredientMap.get(temp.getId()).copy(temp);
+                        float g = ingredientMap.get(temp.getName()).getAmount();
+                        ingredientMap.get(temp.getName()).copy(temp);
+                        ingredientMap.get(temp.getName()).setAmount(g);
                     }
                 }
 
@@ -130,8 +127,9 @@ public class FirebaseDataHandler {
     }
 
     private static void onAllIngredientsResolved(Set<Ingredient> myIngredients) {
+        Log.i("myComments", "onAllIngredientsResolved");
         for (Ingredient ing : myIngredients) {
-            if (ing.getId() != null) {
+            if (ing.getId() != null && !ing.getId().isEmpty()) {
                 Log.d("FB", ing.getName() + " → exists, ID assigned: " + ing.getId());
             } else {
                 Log.d("FB", ing.getName() + " → does NOT exist in Firestore");

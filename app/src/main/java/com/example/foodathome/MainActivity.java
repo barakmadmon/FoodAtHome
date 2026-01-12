@@ -60,7 +60,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     {
         if(view == searchBT)
         {
-            /*
             String dish = dishET.getText().toString();
             if(!dish.isEmpty())
             {
@@ -71,27 +70,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             else
             {
                 Toast.makeText(this, "dist must contain a value", Toast.LENGTH_SHORT).show();
-            }*/
-
-                Log.i("myComments", "getting ingredients");
-                //FirebaseDataHandler.getIngredients(s,true);
-                FirebaseFirestore db = FirebaseFirestore.getInstance();
-                db.collection("Ingredients").get().addOnSuccessListener(task -> {
-                    DocumentSnapshot doc  =  task.getDocuments().get(0);
-                    Log.i("myComments", doc.getId());
-                    Log.i("myComments", doc.get("Name", String.class));
-                    Log.i("myComments", doc.get("UnitSize", Float.class).toString());
-                    Log.i("myComments", doc.get("Price",  Float.class).toString());
-                });
-            Log.i("myComments", "survive");
-
-
-//                a.addOnSuccessListener((QuerySnapshot qs) -> {
-//                }).addOnFailureListener((Exception e) -> {
-//                    Log.i("myComments", "listner failure" + e.toString());
-//                });
-
-//                Log.i("myComments", "waiting");
+            }
 
         }
     }
