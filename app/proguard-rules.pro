@@ -19,3 +19,11 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Preserve Firestore and gRPC internal classes
+-keep class com.google.firebase.firestore.** { *; }
+-keep class io.grpc.** { *; }
+
+# Preserve your data models (Important!)
+# Replace 'com.example.foodathome.models' with the actual package where your data classes are
+-keepclassmembers class com.example.foodathome.models.** { *; }

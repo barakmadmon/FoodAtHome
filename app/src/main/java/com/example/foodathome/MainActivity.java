@@ -76,8 +76,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 Log.i("myComments", "getting ingredients");
                 //FirebaseDataHandler.getIngredients(s,true);
                 FirebaseFirestore db = FirebaseFirestore.getInstance();
-                db.collection("Ingredients")
-                        .get();
+                db.collection("Ingredients").get().addOnSuccessListener(task -> {
+                    DocumentSnapshot doc  =  task.getDocuments().get(0);
+                    Log.i("myComments", doc.getId());
+                    Log.i("myComments", doc.get("Name", String.class));
+                    Log.i("myComments", doc.get("UnitSize", Float.class).toString());
+                    Log.i("myComments", doc.get("Price",  Float.class).toString());
+                });
+            Log.i("myComments", "survive");
+
 
 //                a.addOnSuccessListener((QuerySnapshot qs) -> {
 //                }).addOnFailureListener((Exception e) -> {
@@ -87,11 +94,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 //                Log.i("myComments", "waiting");
 
         }
-    }
-
-    void temp(List<Ingredient> s, DocumentSnapshot doc) {
-        s.get(0).copy(doc.toObject(Ingredient.class));
-        s.get(0).setId(doc.getId());
     }
 }
 
