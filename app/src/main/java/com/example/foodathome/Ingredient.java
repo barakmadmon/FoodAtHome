@@ -2,6 +2,7 @@ package com.example.foodathome;
 
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.Exclude;
+import java.util.Objects;
 
 public class Ingredient {
     private String id;
@@ -34,13 +35,13 @@ public class Ingredient {
         this.name = ingredient.name;
         this.price = ingredient.price;
         this.unitSize = ingredient.unitSize;
-        this.amount = ingredient.amount;
     }
 
     @Exclude
     public String getId() {return id;}
     public void setId(String id) {this.id =id;}
     public String getName() { return name; }
+    public void setName(String name) { this.name = name;}
     public float getPrice() { return price; }
     public void setPrice(float price) { this.price=price; }
 
@@ -60,5 +61,18 @@ public class Ingredient {
             return price*amount/unitSize;
         else
             return price*amount;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Ingredient that = (Ingredient) o;
+        return Objects.equals(name, that.name);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(name);
     }
 }

@@ -48,6 +48,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             return insets;
         });
 
+        AiHandler.init(this);
+
         dishET = findViewById(R.id.dishET);
         searchBT = findViewById(R.id.searchBT);
 
@@ -58,7 +60,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     public void onClick(View view)
     {
-        if(view == searchBT)
+        Intent intent = new Intent(MainActivity.this, MapActivity.class);
+        startActivity(intent);
+        /*if(view == searchBT)
         {
             String dish = dishET.getText().toString();
             if(!dish.isEmpty())
@@ -71,8 +75,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             {
                 Toast.makeText(this, "dist must contain a value", Toast.LENGTH_SHORT).show();
             }
-
-        }
+        }*/
     }
 }
 

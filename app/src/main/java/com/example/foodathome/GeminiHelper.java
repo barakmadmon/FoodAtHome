@@ -1,38 +1,34 @@
 package com.example.foodathome;
+
+import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 
 import com.google.genai.Client;
-import com.google.genai.types.GenerateContentResponse;
 
-public class GeminiHelper
-{
+public class GeminiHelper {
     Client client;
     boolean succesfulResponse;
 
-    public GeminiHelper()
-    {
-        client = Client.builder().apiKey(BuildConfig.GEMINI_API_KEY).build();
+    public GeminiHelper(Context context) {
+        // Accessing the key from resources (resValue in build.gradle)
+        String apiKey = context.getString(R.string.gemini_api_key);
+        client = Client.builder().apiKey(apiKey).build();
     }
 
-    public boolean ResponseStatus() { return this.succesfulResponse; }
+    public boolean ResponseStatus() {
+        return this.succesfulResponse;
+    }
 
-    public void askGemini(String text, Callback callback)
-    {
+    public void askGemini(String text, Callback callback) {
         Handler mainHandler = new Handler(Looper.getMainLooper());
 
         new Thread(() -> {
             String result = "";
             try {
-                GenerateContentResponse response =
-                        client.models.generateContent(
-                                "gemini-2.5-flash",
-                                text,
-                                null);
-
-                result = response.text();
-                this.succesfulResponse = result != null && !result.isEmpty();
+                result = getResponse(text);
+                this.succesfulResponse = result != null && !result.isEmpty() && !result.contains("com.google.genai.errors.ClientException");
                 Log.i("myComments", "got response");
 
             } catch (Exception e) {
@@ -42,8 +38,23 @@ public class GeminiHelper
             // Post the result back to the main/UI thread
             String finalResult = result;
             mainHandler.post(() -> {
-                callback.onDone(finalResult); });
+                callback.onDone(finalResult);
+            });
 
         }).start();
+    }
+
+    public String getResponse(String text) {
+        String response = "";
+        try {
+            response = client.models.generateContent(
+                    "gemini-2.5-flash-lite", // Make sure this model name is correct for your SDK version
+                    text,
+                    null).text();
+        } catch (Exception e) {
+            Log.e("GeminiHelper", "Error generating content", e);
+            response = "error:" + e.toString();
+        }
+        return response;
     }
 }

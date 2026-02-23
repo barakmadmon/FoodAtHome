@@ -45,15 +45,11 @@ public class recipeActivity extends AppCompatActivity{
 
             try {
                 aiSem.acquire();   // waits for signal
-                for (Ingredient ingredient : recipe.getIngredients().keySet()) {
-                    Log.i("myComments", ingredient.toString());
-                }
                 Log.i("myComments", "weight release");
                 Ingredients_Handler.updateIngredientWeight(recipe);
-                Ingredients_Handler.ingSem.acquire();  // waits for signal
-                Log.i("myComments", "price release");
+                // waits for signal
                 Ingredients_Handler.getIngredients(recipe.getIngredients().keySet());
-                Ingredients_Handler.ingSem.acquire();
+                Ingredients_Handler.ingSem.acquire(2);
 
                 Log.i("myComments", "ui release");// waits for signal
             } catch (InterruptedException e) {
@@ -112,7 +108,7 @@ public class recipeActivity extends AppCompatActivity{
                 }
             }
             catch (JSONException e) {
-                recipe.setRecipe("json error");
+                recipe.setRecipe("error getting recipe");
             }
         }
     }

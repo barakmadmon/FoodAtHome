@@ -39,90 +39,107 @@ public class Ingredients_Handler {
 
     public static void updateIngredientWeight(Recipe recipe)
     {
-        Log.i("myComments", recipe.toString());
-        //Handler mainHandler = new Handler(Looper.getMainLooper());
-        String request = "please answer me in the given format: each ingridient has a given name and amount, for each ingredient answer me how much it'll weight in grams.if the ingredient is a liquid give me amount in ml. answer me with a json format 'ingridient_name' : 'weight/volume', the 'weight/volume' will only include the number without measure unit (amount will be given as string for example- 'tomato': '3 medium' will become 'tomato' : '400'. or 'water': '400 ml' will become 'water' : '400' ). do not respond with any other output except from the json itself";
-        request += " here is the list of items:\n";
-        for(Map.Entry<Ingredient, String> ingredient : recipe.getIngredients().entrySet()) {
-            if(ingredient.getKey().getId().isEmpty())
-                request += String.format("%s:%s",ingredient.getKey().getName(),ingredient.getValue());
-        }
+        new Thread(() -> {
 
+            Log.i("myComments","getting weight");
+            //Handler mainHandler = new Handler(Looper.getMainLooper());
+            String request = "please answer me in the given format: each ingridient has a given name and amount, for each ingredient answer me how much it'll weight in grams.if the ingredient is a liquid give me amount in ml. answer me with a json format 'ingridient_name' : 'weight/volume', the 'weight/volume' will only include the number without measure unit (amount will be given as string for example- 'tomato': '3 medium' will become 'tomato' : '400'. or 'water': '400 ml' will become 'water' : '400' ). do not respond with any other output except from the json itself";
+            request += " here is the list of items:\n";
+            for (Map.Entry<Ingredient, String> ingredient : recipe.getIngredients().entrySet()) {
+                if (ingredient.getKey().getId().isEmpty())
+                    request += String.format("%s:%s", ingredient.getKey().getName(), ingredient.getValue());
+            }
 
-        Log.i("myComments", request);
-        AiHandler.AIClient.askGemini(request, response -> {
-            JSONObject jsonIngrdients;
+            AiHandler.AIClient.askGemini(request, response -> {
+                JSONObject jsonIngrdients;
+
+                try {
+                    if (response == null || response.isEmpty())
+                        throw (new RuntimeException("empty response"));
+
+                    response = response.replace("json", "");
+                    response = response.replace("```", "");
+                    Log.i("myComments", response);
+                    jsonIngrdients = new JSONObject(response);
+                    java.util.Iterator<String> keys = jsonIngrdients.keys();
+                    Iterator<Ingredient> iterator = recipe.getIngredients().keySet().iterator();
+
+                    while (keys.hasNext() && iterator.hasNext()) {
+                        String key = keys.next();
+
+                        Ingredient ingredient = iterator.next();
+                        ingredient.setAmount(Float.parseFloat(jsonIngrdients.get(key).toString()));
+                    }
+                } catch (JSONException e) {
+                    Log.i("myComments", e.toString());
+                } finally {
+                    aiSem.release();
+                }
+            });
 
             try {
-                if( response == null  || response.isEmpty())
-                    throw(new RuntimeException("empty response"));
-
-                response = response.replace("json", "");
-                response = response.replace("```", "");
-                Log.i("myComments", response);
-                jsonIngrdients = new JSONObject(response);
-                java.util.Iterator<String> keys = jsonIngrdients.keys();
-                Iterator<Ingredient> iterator = recipe.getIngredients().keySet().iterator();
-
-                while (keys.hasNext() && iterator.hasNext()) {
-                    String key = keys.next();
-
-                    Ingredient ingredient = iterator.next();
-                    ingredient.setAmount(Float.parseFloat(jsonIngrdients.get(key).toString()));
-                }
-            } catch (JSONException e) {
+                aiSem.acquire();
+            } catch (Exception e) {
                 Log.i("myComments", e.toString());
             } finally {
-                aiSem.release();
+                Log.i("myComments", "weight finish");
+                ingSem.release();
             }
-        });
-
-        try {
-            aiSem.acquire();
-        }
-        catch (Exception e){
-            Log.i("myComments", e.toString());
-        }
-        finally {
-            ingSem.release();
-        }
+        }).start();
     }
 
     public static void getIngredients(Set<Ingredient> ingredients)
     {
-        Set<Ingredient> newIngredients = new HashSet<>(), completeIngredients = new HashSet<>();
+        new Thread(() -> {
+            Log.i("myComments","getting ing");
+            Set<Ingredient> newIngredients = new HashSet<>(), completeIngredients = new HashSet<>();
 
-        FirebaseDataHandler.getIngredients(ingredients,false);
-        try {
-            FirebaseDataHandler.ingredientSem.acquire();
-            for (Ingredient ingredient : ingredients) {
-                if (ingredient.getId() == null || ingredient.getId().isEmpty())
-                    newIngredients.add(ingredient);
-                else
-                    Log.i("myComments",ingredient.getId());
-            }
-        } catch (Exception e) {
-            Log.i("myComments", e.toString());
-        }
+            FirebaseDataHandler.getIngredients(ingredients, false);
+            try {
+                FirebaseDataHandler.ingredientSem.acquire();
+                for (Ingredient ingredient : ingredients) {
+                    if ((ingredient.getId() == null || ingredient.getId().isEmpty())) {
+                        boolean newI = true;
+                        for (String i : FREE_ITEMS) {
+                            if (ingredient.getName().equals(i))
+                                newI = false;
+                        }
 
-        if(!newIngredients.isEmpty()) {
-            Log.i("myComments", "new ingredients");
-            searchIngredients(newIngredients);
-            try { // no finally becuase ingSem is also released when there no new ingredients
-                aiSem.acquire();
-                FirebaseDataHandler.addIngredients(newIngredients);
-                for(Ingredient ingredient: ingredients) {
-                    if (ingredient.getId() != null)
-                        newIngredients.add(ingredient);
+                        if (newI) {
+                            newIngredients.add(ingredient);
+                            Log.i("myComments", ingredient.toString());
+                        }
+                    } else
+                        Log.i("myComments", ingredient.getId());
                 }
             } catch (Exception e) {
                 Log.i("myComments", e.toString());
             }
-        }
 
-        ingSem.release();
+            if (!newIngredients.isEmpty()) {
+                Log.i("myComments", "new ingredients");
+                searchIngredients(newIngredients);
+                try { // no finally becuase ingSem is also released when there no new ingredients
+                    aiSem.acquire();
+                    FirebaseDataHandler.addIngredients(newIngredients);
 
+                    for (Ingredient i : newIngredients) {
+                        for (Ingredient j : ingredients) {
+                            if (i.getName().equals(j.getName())) {
+                                i.copy(j);
+                            }
+                        }
+                    }
 
+                } catch (Exception e) {
+                    Log.i("myComments", "failed at get I");
+                    Log.i("myComments", e.toString());
+                }
+            }
+
+            ingSem.release();
+            Log.i("myComments", "ingredients got");
+        }).start();
     }
 
     private static void searchIngredients(Set<Ingredient> ingredients) {
@@ -146,46 +163,47 @@ public class Ingredients_Handler {
         }
 
         AiHandler.AIClient.askGemini(format, response -> {
-            JSONObject jsonIngrdients;
-            response = response.replace("json", "");
-            response = response.replace("```", "");
-            Log.i("myComments", response);
-            try {
-                jsonIngrdients = new JSONObject(response);
-            } catch (JSONException e) {
-                throw new RuntimeException(e);
-            }
-
-            java.util.Iterator<String> keys = jsonIngrdients.keys();
-            Iterator<Ingredient> iterator = ingredients.iterator();
-
-            while (keys.hasNext() && iterator.hasNext()) {
-                String key = keys.next();
-                String valueString = null;
-
-
+            if ( !response.startsWith("error:") ) {
+                JSONObject jsonIngrdients;
+                response = response.replace("json", "");
+                response = response.replace("```", "");
+                Log.i("myComments", response);
                 try {
-                    valueString = jsonIngrdients.getString(key);
+                    jsonIngrdients = new JSONObject(response);
                 } catch (JSONException e) {
                     throw new RuntimeException(e);
                 }
-                String[] parts = valueString.split(" : ");
-                Ingredient ingredient;
-                boolean free = false;
-                do {
-                    ingredient = iterator.next();
-                    free = false;
-                    for (String item : FREE_ITEMS) {
-                        if (ingredient.getName().contains(item)) {
-                            ingredient.setPrice(0);
-                            free = true;
-                            break;
-                        }
-                    }
-                }while(free);
 
-                ingredient.setPrice(Float.parseFloat(parts[0]));
-                ingredient.setUnitSize(Float.parseFloat(parts[1]));
+                java.util.Iterator<String> keys = jsonIngrdients.keys();
+                Iterator<Ingredient> iterator = ingredients.iterator();
+
+                while (keys.hasNext() && iterator.hasNext()) {
+                    String key = keys.next();
+                    String valueString = null;
+
+                    try {
+                        valueString = jsonIngrdients.getString(key);
+                    } catch (JSONException e) {
+                        throw new RuntimeException(e);
+                    }
+                    String[] parts = valueString.split(" : ");
+                    Ingredient ingredient;
+                    boolean free = false;
+                    do {
+                        ingredient = iterator.next();
+                        free = false;
+                        for (String item : FREE_ITEMS) {
+                            if (ingredient.getName().contains(item)) {
+                                ingredient.setPrice(0);
+                                free = true;
+                                break;
+                            }
+                        }
+                    } while (free);
+
+                    ingredient.setPrice(Float.parseFloat(parts[0]));
+                    ingredient.setUnitSize(Float.parseFloat(parts[1]));
+                }
             }
             aiSem.release();
         });

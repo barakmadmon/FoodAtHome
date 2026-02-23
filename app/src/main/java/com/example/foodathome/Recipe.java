@@ -8,10 +8,8 @@ import com.google.firebase.firestore.Exclude;
 import java.util.HashMap;
 import java.util.Map;
 
-public class Recipe {
-    @Exclude
-    String id;
-    private String name;
+public class Recipe extends Dish {
+
     private String recipe;
     @Exclude
     private HashMap<Ingredient, String> ingredients;
@@ -19,14 +17,9 @@ public class Recipe {
     public Recipe() { }
 
     public Recipe(String name) {
-        this.name = name;
+        super(name);
         this.ingredients = new HashMap<Ingredient, String>();
     }
-
-    public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
     public String getRecipe() { return recipe; }
     public void setRecipe(String recipe) { this.recipe=recipe; }
     public HashMap<Ingredient, String> getIngredients() {
@@ -41,7 +34,11 @@ public class Recipe {
         String recipeStr = "Ingridients: \n";
 
         for (Map.Entry<Ingredient,String> entry : ingredients.entrySet()) {
-            recipeStr += String.format("%s: %s.\t\t %f\n",entry.getKey().getName(),entry.getValue(),entry.getKey().calcPrice());
+
+            recipeStr += String.format("%s: %s.\t\t",entry.getKey().getName(),entry.getValue());
+            if (entry.getKey().calcPrice() != 0)
+                recipeStr += String.format("%f\n",entry.getKey().calcPrice());
+
         }
         recipeStr += String.format("total: %f\n",totalPrice());
 

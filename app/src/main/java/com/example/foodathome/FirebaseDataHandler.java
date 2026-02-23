@@ -86,7 +86,7 @@ public class FirebaseDataHandler {
         }
 
         ingrdientIDS = new ArrayList<>(ingredientMap.keySet());
-        for (int i = 0; i < ingrdientIDS.size(); i += 10) {
+        for (int i = 0; i < ingrdientIDS.size(); i += BATCH_SIZE) {
             List<String> idChunk = ingrdientIDS.subList(i, Math.min(ingrdientIDS.size(), i + BATCH_SIZE));
 
             Query q;
@@ -104,14 +104,10 @@ public class FirebaseDataHandler {
                     temp.setId(doc.getId());
 
                     if(recipe) {
-                        float g = ingredientMap.get(temp.getId()).getAmount();
                         ingredientMap.get(temp.getId()).copy(temp);
-                        ingredientMap.get(temp.getId()).setAmount(g);
                     }
                     else {
-                        float g = ingredientMap.get(temp.getName()).getAmount();
                         ingredientMap.get(temp.getName()).copy(temp);
-                        ingredientMap.get(temp.getName()).setAmount(g);
                     }
                 }
 
