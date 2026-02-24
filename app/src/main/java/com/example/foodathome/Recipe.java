@@ -31,8 +31,9 @@ public class Recipe extends Dish {
 
     @Override
     public String toString() {
-        String recipeStr = "Ingridients: \n";
+        String recipeStr = "Name: " + name + "\n";
 
+        recipeStr += "Ingridients: \n";
         for (Map.Entry<Ingredient,String> entry : ingredients.entrySet()) {
 
             recipeStr += String.format("%s: %s.\t\t",entry.getKey().getName(),entry.getValue());

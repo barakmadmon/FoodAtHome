@@ -1,44 +1,47 @@
 package com.example.foodathome;
 
+import static android.content.Intent.getIntent;
+
+import android.app.Activity;
+import android.content.Intent;
 import android.os.Bundle;
-import android.widget.TextView;
 import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.TextView;
+import android.widget.Toast;
 
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
-
-import androidx.activity.EdgeToEdge;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
-//import com.google.firebase.BuildConfig;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
-public class recipeActivity extends AppCompatActivity{
-    TextView recipeTV;
+import java.util.concurrent.Semaphore;
+
+public class RecipeFragment extends Fragment {
+    private Button saveRecipeBT; // currently isnt called for firebase design sakes
+    private TextView recipeTV;
     static final Semaphore aiSem = new Semaphore(0);
 
+    @Nullable
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        EdgeToEdge.enable(this);
-        //setContentView(R.layout.activity_recipie);
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
-            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
-            return insets;
-        });
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+        View view = inflater.inflate(R.layout.fragment_recipe, container, false);
+        Activity activity = getActivity();
 
-        String dish = getIntent().getStringExtra("DISH");
+        String dish = activity.getIntent().getStringExtra("DISH"); // cant call
+        if (dish == null) {
+            dish = "None dish";
+        }
+
         Recipe recipe = new Recipe(dish);
         Log.i("myComments", dish);
-        recipeTV = findViewById(R.id.recipeTV);
+        recipeTV = view.findViewById(R.id.recipeTV);
 
         new Thread(() -> {
             getRecipe(AiHandler.AIClient,recipe,"");
@@ -56,15 +59,19 @@ public class recipeActivity extends AppCompatActivity{
                 throw new RuntimeException(e);
             }
 
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    Log.i("myComments", "posting recipe");
-                    recipeTV.setText(recipe.toString());
-                }
 
-            });
+            if (activity != null) {
+                activity.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        Log.i("myComments", "posting recipe");
+                        recipeTV.setText(recipe.toString());
+                    }
+                });
+            }
         }).start();
+
+        return view;
     }
 
     public void getRecipe(GeminiHelper aiHandler,Recipe recipe,String details){
@@ -111,5 +118,4 @@ public class recipeActivity extends AppCompatActivity{
             }
         }
     }
-
 }

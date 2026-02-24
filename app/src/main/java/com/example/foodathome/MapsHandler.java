@@ -24,32 +24,34 @@ import com.google.android.libraries.places.api.net.PlacesClient;
 import com.google.android.libraries.places.api.net.SearchNearbyRequest;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class MapsHandler {
-    public static final String TAG = "MapActivity";
+    public static final String TAG = "MapFragment";
     public static final int PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 1;
 
     private static final int SEARCH_RADIUS = 10000; // 10km
     private static final List<String> LOCATION_FILTER = Arrays.asList("restaurant", "cafe", "meal_takeaway");
 
-    private MapActivity activityCallback;
+    private MapFragment fragmentCallback;
     private FusedLocationProviderClient fusedLocationClient;
     private GoogleMap mMap;
     private PlacesClient placesClient;
     private boolean locationPermissionGranted;
     private Location lastLocation;
 
-    public MapsHandler(MapActivity context) {
-        this.activityCallback = context;
+    public MapsHandler(MapFragment fragment) {
+        this.fragmentCallback = fragment;
 
         if (!Places.isInitialized()) {
-            String apiKey = context.getString(R.string.maps_api_key);
-            Places.initialize(context, apiKey);
+            String apiKey = fragment.getString(R.string.maps_api_key);
+            Places.initialize(fragment.requireContext(), apiKey);
         }
 
-        this.placesClient = Places.createClient(context);
-        this.fusedLocationClient = LocationServices.getFusedLocationProviderClient(context);
+        this.placesClient = Places.createClient(fragment.requireContext());
+        this.fusedLocationClient = LocationServices.getFusedLocationProviderClient(fragment.requireContext());
     }
 
     public void setUpMap(GoogleMap googleMap) {
@@ -72,7 +74,7 @@ public class MapsHandler {
         try {
             if (this.locationPermissionGranted) {
                 Task<Location> locationResult = this.fusedLocationClient.getLastLocation();
-                locationResult.addOnSuccessListener(this.activityCallback, location -> {
+                locationResult.addOnSuccessListener(this.fragmentCallback.requireActivity(), location -> {
                     this.lastLocation = location;
                     if (this.lastLocation != null) {
                         LatLng currentLatLng = new LatLng(this.lastLocation.getLatitude(), this.lastLocation.getLongitude());
@@ -103,11 +105,11 @@ public class MapsHandler {
     }
 
     public void getLocationPermission() {
-        if (ContextCompat.checkSelfPermission(this.activityCallback.getApplicationContext(),
+        if (ContextCompat.checkSelfPermission(this.fragmentCallback.requireContext(),
                 Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             this.locationPermissionGranted = true;
         } else {
-            ActivityCompat.requestPermissions(this.activityCallback,
+            this.fragmentCallback.requestPermissions(
                     new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
                     PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION);
         }
@@ -168,23 +170,24 @@ public class MapsHandler {
 
         this.placesClient.searchNearby(searchNearbyRequest)
                 .addOnSuccessListener((response) -> {
-                    StringBuilder result = new StringBuilder();
-                    for (Place place : response.getPlaces()) {
-                        result.append("Restaurant: ").append(place.getName()).append("\n");
 
+
+                    Map<String,String> result = new HashMap<String,String>();
+                    for (Place place : response.getPlaces()) {
+                        String name = place.getName();
+                        String website = "Not found";
                         if (place.getWebsiteUri() != null) {
-                            result.append("Website/Menu: ").append(place.getWebsiteUri().toString()).append("\n");
-                        } else {
-                            result.append("Website/Menu: Not found\n");
+                            website = place.getWebsiteUri().toString();
                         }
 
-                        result.append("----------------------------\n");
+                        result.put(name, website);
+
                     }
-                    this.activityCallback.onRestaurantsDone(result.toString());
+                    this.fragmentCallback.onRestaurantsDone(result);
                 })
                 .addOnFailureListener((exception) -> {
                     Log.e(TAG, "Search nearby failed for text list: " + exception.getMessage());
-                    this.activityCallback.onRestaurantsDone("Error finding restaurants");
+                    this.fragmentCallback.onRestaurantsDone(null);
                 });
     }
 

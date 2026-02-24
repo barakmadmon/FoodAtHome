@@ -21,6 +21,7 @@ public class GeminiHelper {
         return this.succesfulResponse;
     }
 
+
     public void askGemini(String text, Callback callback) {
         Handler mainHandler = new Handler(Looper.getMainLooper());
 
@@ -35,7 +36,7 @@ public class GeminiHelper {
                 Log.i("myComments", e.toString());
             }
 
-            // Post the result back to the main/UI thread
+            // callback to main handler (calling thread)
             String finalResult = result;
             mainHandler.post(() -> {
                 callback.onDone(finalResult);
@@ -48,7 +49,7 @@ public class GeminiHelper {
         String response = "";
         try {
             response = client.models.generateContent(
-                    "gemini-2.5-flash-lite", // Make sure this model name is correct for your SDK version
+                    "gemini-2.0-flash",
                     text,
                     null).text();
         } catch (Exception e) {

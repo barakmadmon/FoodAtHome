@@ -37,7 +37,7 @@ public class FirebaseDataHandler {
     public static void addIngredients(Set<Ingredient> ingredients) {
         Set<String> existingNames = new HashSet<>();
         AtomicInteger completed = new AtomicInteger(0);
-        ArrayList<String> names = new ArrayList<>();
+        ArrayList<String> names =  new ArrayList<>();
 
         for (Ingredient ing : ingredients) {
             names.add(ing.getName());
@@ -94,7 +94,9 @@ public class FirebaseDataHandler {
                 q =  db.collection(INGREDIENT_COLLECTION).whereIn(FieldPath.documentId(), idChunk);
             }
             else {
-                 q =  db.collection(INGREDIENT_COLLECTION).whereIn("name", idChunk);
+                Log.i("myComments", "db func");
+                q =  db.collection(INGREDIENT_COLLECTION).whereIn("name", idChunk);
+                Log.i("myComments", "db func1");
             }
 
             q.get().addOnSuccessListener((QuerySnapshot qs) -> {

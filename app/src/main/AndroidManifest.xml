@@ -16,9 +16,6 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.FoodAtHome"
         tools:targetApi="31">
-        <activity
-            android:name=".MapActivity"
-            android:exported="false" />
 
         <meta-data
             android:name="com.google.android.geo.API_KEY"

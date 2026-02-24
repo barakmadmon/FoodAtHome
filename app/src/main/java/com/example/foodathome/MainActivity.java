@@ -1,81 +1,63 @@
 package com.example.foodathome;
 
-import static com.example.foodathome.FirebaseDataHandler.ingredientSem;
-import static autovalue.shaded.com.google.common.collect.ComparisonChain.start;
-
-import android.content.Intent;
 import android.os.Bundle;
-import android.util.Log;
-import android.view.View;
-import android.widget.Button;
-import android.widget.EditText;
-import android.widget.Toast;
 
-import androidx.activity.EdgeToEdge;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
+import androidx.fragment.app.Fragment;
 
-import com.google.android.gms.tasks.Task;
-import com.google.firebase.firestore.DocumentReference;
-import com.google.firebase.firestore.DocumentSnapshot;
-import com.google.firebase.firestore.FieldPath;
-import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.firestore.QuerySnapshot;
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
-import java.util.Set;
 
-public class MainActivity extends AppCompatActivity implements View.OnClickListener {
+public class MainActivity extends AppCompatActivity {
     private static final Logger log = LoggerFactory.getLogger(MainActivity.class);
-    EditText dishET;
-    Button searchBT;
-
-
+    private BottomNavigationView bottomNavigationView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
-            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
-            return insets;
-        });
 
         AiHandler.init(this);
 
-        dishET = findViewById(R.id.dishET);
-        searchBT = findViewById(R.id.searchBT);
+        bottomNavigationView = findViewById(R.id.bottom_navigation);
 
-        searchBT.setOnClickListener(this);
+        // Set default fragment to MapFragment
+        if (savedInstanceState == null) {
+            getSupportFragmentManager().beginTransaction()
+                    .replace(R.id.fragment_container, new MapFragment())
+                    .commit();
+            bottomNavigationView.setSelectedItemId(R.id.nav_map);
+        }
+
+        bottomNavigationView.setOnItemSelectedListener(item -> {
+            Fragment selectedFragment = null;
+            int itemId = item.getItemId();
+
+            if (itemId == R.id.nav_recipe) {
+                selectedFragment = new RecipeFragment();
+            } else if (itemId == R.id.nav_map) {
+                selectedFragment = new MapFragment();
+            }
+
+            if (selectedFragment != null) {
+                getSupportFragmentManager().beginTransaction()
+                        .replace(R.id.fragment_container, selectedFragment)
+                        .commit();
+            }
+            return true;
+        });
     }
-
 
     @Override
-    public void onClick(View view)
-    {
-        Intent intent = new Intent(MainActivity.this, MapActivity.class);
-        startActivity(intent);
-        /*if(view == searchBT)
-        {
-            String dish = dishET.getText().toString();
-            if(!dish.isEmpty())
-            {
-                Intent intent = new Intent(this, recipeActivity.class);
-                intent.putExtra("DISH",dish );
-                startActivity(intent);
-            }
-            else
-            {
-                Toast.makeText(this, "dist must contain a value", Toast.LENGTH_SHORT).show();
-            }
-        }*/
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        Fragment fragment = getSupportFragmentManager().findFragmentById(R.id.fragment_container);
+        if (fragment != null) {
+            fragment.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        }
     }
 }
-
