@@ -23,7 +23,7 @@ public class RestaurantDish extends Dish {
     @Override
     public String toString() {
         String str = "name: " + this.name + "\n";
-        str += "detais: " + (this.details.isEmpty() ? this.details : "None");
+        str += "detais: " + (!this.details.isEmpty() ? this.details : "None");
 
         return str;
     }

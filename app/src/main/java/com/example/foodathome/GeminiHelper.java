@@ -7,6 +7,8 @@ import android.util.Log;
 
 import com.google.genai.Client;
 
+// --- REQUIREMENT: 6.12 ---
+// methods for calling the ai
 public class GeminiHelper {
     Client client;
     boolean succesfulResponse;

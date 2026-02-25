@@ -23,13 +23,42 @@
             android:divider="@android:color/darker_gray"
             android:dividerHeight="1dp" />
 
-        <ListView
-            android:id="@+id/dishesListView"
+        <LinearLayout
+            android:id="@+id/dishesContainer"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:visibility="gone"
-            android:divider="@android:color/darker_gray"
-            android:dividerHeight="1dp" />
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="8dp">
+
+                <Button
+                    android:id="@+id/backToRestaurantsButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Back"
+                    android:layout_alignParentStart="true"
+                    android:layout_centerVertical="true"/>
+
+                <TextView
+                    android:id="@+id/restaurantTitleTextView"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerInParent="true"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+            </RelativeLayout>
+
+            <ListView
+                android:id="@+id/dishesListView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:divider="@android:color/darker_gray"
+                android:dividerHeight="1dp" />
+        </LinearLayout>
             
     </FrameLayout>
 

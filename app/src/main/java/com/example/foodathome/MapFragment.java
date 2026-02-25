@@ -6,7 +6,9 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.ListView;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -16,20 +18,24 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 
-import org.json.JSONException;
-import org.json.JSONObject;
-
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
 public class MapFragment extends Fragment implements OnMapReadyCallback {
     private static final String TAG = "MapFragment";
     private MapsHandler mapsHandler = null;
+    
     private ListView restaurantListView;
-    private ArrayAdapter<Restaurant> adapter;
+    private ArrayAdapter<Restaurant> restaurantAdapter;
     private List<Restaurant> restaurantList = new ArrayList<>();
+    private Restaurant currentRestaurant = null;
+
+    private View dishesContainer;
+    private ListView dishListView;
+    private ArrayAdapter<RestaurantDish> dishAdapter;
+    private Button backToRestaurantsButton;
+    private TextView restaurantTitleTextView;
 
     @Nullable
     @Override
@@ -40,24 +46,67 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        
+
         restaurantListView = view.findViewById(R.id.restaurantListView);
-        // Using a simple layout, but you might want a custom adapter for Restaurant objects later
-        adapter = new ArrayAdapter<>(requireContext(), R.layout.restaurant_item, restaurantList);
-        restaurantListView.setAdapter(adapter);
+        restaurantAdapter = new ArrayAdapter<>(requireContext(), R.layout.restaurant_item, restaurantList);
+        restaurantListView.setAdapter(restaurantAdapter);
+
+        dishesContainer = view.findViewById(R.id.dishesContainer);
+        dishListView = view.findViewById(R.id.dishesListView);
+        backToRestaurantsButton = view.findViewById(R.id.backToRestaurantsButton);
+        restaurantTitleTextView = view.findViewById(R.id.restaurantTitleTextView);
+
+        backToRestaurantsButton.setOnClickListener(v -> showRestaurantList());
+
+        restaurantListView.setOnItemClickListener((parent, v, position, id) -> {
+            currentRestaurant = restaurantList.get(position);
+            Log.d(TAG, "Clicked on restaurant: " + currentRestaurant.getName());
+
+            showRestaurantDishes(currentRestaurant);
+        });
+
+        dishListView.setOnItemClickListener((parent, v, position, id) -> {
+            if (currentRestaurant != null) {
+                RestaurantDish dish = currentRestaurant.getDishes().get(position);
+                Log.d(TAG, "Clicked on dish: " + dish.getName());
+
+                if (getActivity() instanceof MainActivity) {
+                    ((MainActivity) getActivity()).navigateToRecipe(dish.getName(), dish.getDetails());
+                }
+            }
+        });
 
         this.mapsHandler = new MapsHandler(this);
-        SupportMapFragment mapFragment = (SupportMapFragment) getChildFragmentManager()
-                .findFragmentById(R.id.map_inner);
-        
+
+        SupportMapFragment mapFragment = (SupportMapFragment) getChildFragmentManager().findFragmentById(R.id.map_inner);
+
+
         if (mapFragment == null) {
             mapFragment = SupportMapFragment.newInstance();
-            getChildFragmentManager().beginTransaction()
-                    .replace(R.id.map_inner, mapFragment)
-                    .commit();
+            getChildFragmentManager().beginTransaction().replace(R.id.map_inner, mapFragment).commit();
         }
         mapFragment.getMapAsync(this);
     }
+
+    public void showDishList() {
+        if (getActivity() != null) {
+            getActivity().runOnUiThread(() -> {
+                dishesContainer.setVisibility(View.VISIBLE);
+                restaurantListView.setVisibility(View.GONE);
+            });
+        }
+
+    }
+
+    public void showRestaurantList() {
+        if (getActivity() != null) {
+            getActivity().runOnUiThread(() -> {
+                dishesContainer.setVisibility(View.GONE);
+                restaurantListView.setVisibility(View.VISIBLE);
+            });
+        }
+    }
+
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
@@ -69,22 +118,34 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
         }
     }
 
-    public void onRestaurantsDone(Map<String,String> result) {
-        Log.d(TAG, "Nearby Restaurants results received");
-        
+    public void onRestaurantsDone(Map<String, String> result) {
         if (getActivity() != null) {
             getActivity().runOnUiThread(() -> {
                 restaurantList.clear();
-                for (Map.Entry<String,String> entry : result.entrySet()) {
-                    Restaurant restaurant = new Restaurant(entry.getKey(), entry.getValue());
-                    restaurantList.add(restaurant);
+                if (result != null) {
+                    for (Map.Entry<String, String> entry : result.entrySet()) {
+                        restaurantList.add(new Restaurant(entry.getKey(), entry.getValue()));
+                    }
                 }
-                adapter.notifyDataSetChanged();
+                restaurantAdapter.notifyDataSetChanged();
             });
         }
     }
 
-    private void onDone(String message) {
-        Log.i(TAG, "Operation completed: " + message);
+    public void showRestaurantDishes(Restaurant restaurant) {
+        new Thread(() -> {
+            if(!restaurant.isLoaded())
+                RestaurantHelper.getRestaurantDishes(restaurant);
+
+            if (getActivity() != null) {
+                getActivity().runOnUiThread(() -> {
+                    restaurantTitleTextView.setText(restaurant.getName());
+                    dishAdapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_list_item_1, restaurant.getDishes());
+                    dishListView.setAdapter(dishAdapter);
+                });
+            }
+
+            showDishList();
+        }).start();
     }
 }

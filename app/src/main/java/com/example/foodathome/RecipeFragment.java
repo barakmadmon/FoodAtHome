@@ -33,18 +33,33 @@ public class RecipeFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_recipe, container, false);
         Activity activity = getActivity();
+        recipeTV = view.findViewById(R.id.recipeTV);
 
-        String dish = activity.getIntent().getStringExtra("DISH"); // cant call
-        if (dish == null) {
-            dish = "None dish";
+        String dish = activity.getIntent().getStringExtra("DISH");
+        String details = activity.getIntent().getStringExtra("DETAILS");
+
+        if (recipeTV != null)
+            if ( dish != null && !dish.isEmpty())
+                loadRecipe(dish,details,activity);
+            else {
+                recipeTV.setText("recipe not found");
+            }
+
+
+        return view;
+    }
+
+    public void loadRecipe(String dish,String details, Activity activity) {
+        if (details == null) {
+            details = "";
         }
 
         Recipe recipe = new Recipe(dish);
         Log.i("myComments", dish);
-        recipeTV = view.findViewById(R.id.recipeTV);
 
+        final String dummyDetails = details; // because this is dum dum
         new Thread(() -> {
-            getRecipe(AiHandler.AIClient,recipe,"");
+            getRecipe(AiHandler.AIClient, recipe, new String(dummyDetails));
 
             try {
                 aiSem.acquire();   // waits for signal
@@ -59,7 +74,6 @@ public class RecipeFragment extends Fragment {
                 throw new RuntimeException(e);
             }
 
-
             if (activity != null) {
                 activity.runOnUiThread(new Runnable() {
                     @Override
@@ -71,10 +85,9 @@ public class RecipeFragment extends Fragment {
             }
         }).start();
 
-        return view;
     }
 
-    public void getRecipe(GeminiHelper aiHandler,Recipe recipe,String details){
+    public void getRecipe(GeminiHelper aiHandler,Recipe recipe,final String details){
         if(recipe != null && !recipe.getName().isEmpty()) {
             //"chicken soup", "chicken soup made with love bacon and spring onions"
             String request = "please answer me in the given format for the dish: \"" +recipe.getName()+"\"";

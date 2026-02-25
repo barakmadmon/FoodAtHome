@@ -11,18 +11,22 @@ import java.util.Map;
 
 public class Restaurant {
     @Exclude
-    String id;
+    private String id; // still isnt implemented in firebase
     private String name;
     private String website;
     @Exclude
     private List<RestaurantDish> dishes;
+    @Exclude
+    private boolean isLoaded = false;
+
 
     public Restaurant() { }
 
     public Restaurant(String name, String website) {
         this.name = name;
         this.website = website;
-        dishes = new ArrayList<RestaurantDish>();
+        this.dishes = new ArrayList<RestaurantDish>();
+        this.isLoaded = false;
     }
 
     public String getName() {
@@ -33,13 +37,26 @@ public class Restaurant {
         return website;
     }
 
+    public String getId() {
+        return id;
+    }
+
     public List<RestaurantDish> getDishes() {
         return dishes;
     }
 
+    public boolean isLoaded() {
+        return isLoaded;
+    }
+
+    public void setLoaded() {
+        isLoaded = true;
+    }
+
     public boolean addDish(RestaurantDish dish) {
-        boolean unique = containDish(dish);
+        boolean unique = !containDish(dish);
         if (unique)
+
             dishes.add(dish);
 
         return !unique;
@@ -53,11 +70,8 @@ public class Restaurant {
         return false;
     }
 
-
     @Override
     public String toString() {
         return name;
     }
-
-
 }
