@@ -8,13 +8,11 @@ import android.util.Log;
 import com.google.genai.Client;
 
 // --- REQUIREMENT: 6.12 ---
-// methods for calling the ai
 public class GeminiHelper {
     Client client;
     boolean succesfulResponse;
 
     public GeminiHelper(Context context) {
-        // Accessing the key from resources (resValue in build.gradle)
         String apiKey = context.getString(R.string.gemini_api_key);
         client = Client.builder().apiKey(apiKey).build();
     }
@@ -38,7 +36,6 @@ public class GeminiHelper {
                 Log.i("myComments", e.toString());
             }
 
-            // callback to main handler (calling thread)
             String finalResult = result;
             mainHandler.post(() -> {
                 callback.onDone(finalResult);

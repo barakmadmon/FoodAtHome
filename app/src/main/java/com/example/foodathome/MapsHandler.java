@@ -156,7 +156,6 @@ public class MapsHandler {
         LatLng currentLatLng = new LatLng(this.lastLocation.getLatitude(), this.lastLocation.getLongitude());
         CircularBounds circle = CircularBounds.newInstance(currentLatLng, SEARCH_RADIUS);
 
-        // WEBSITE_URI is supported, but MENU_URI is not in some SDK versions
         List<Place.Field> placeFields = Arrays.asList(
                 Place.Field.NAME,
                 Place.Field.ADDRESS,

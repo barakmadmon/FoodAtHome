@@ -89,7 +89,7 @@ public class RecipeFragment extends Fragment {
 
     public void getRecipe(GeminiHelper aiHandler,Recipe recipe,final String details){
         if(recipe != null && !recipe.getName().isEmpty()) {
-            //"chicken soup", "chicken soup made with love bacon and spring onions"
+            //"chicken soup", "chicken soup made with love not chicken and spring onions"
             String request = "please answer me in the given format for the dish: \"" +recipe.getName()+"\"";
 
             if(!details.isEmpty()) {
