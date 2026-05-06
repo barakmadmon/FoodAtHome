@@ -7,7 +7,15 @@ import android.util.Log;
 
 import com.google.genai.Client;
 
-// --- REQUIREMENT: 6.12 ---
+/* METHODS:
+    + ResponseStatus- return if response was succesful
+    + askGemini- send request to gemini and call callback on response
+        input: request content
+               callback function
+    - getResponse- send request to gemini and return response
+        input: request content
+ */
+
 public class GeminiHelper {
     Client client;
     boolean succesfulResponse;
@@ -44,11 +52,11 @@ public class GeminiHelper {
         }).start();
     }
 
-    public String getResponse(String text) {
+    private String getResponse(String text) {
         String response = "";
         try {
             response = client.models.generateContent(
-                    "gemini-2.0-flash",
+                    "gemini-2.5-flash",
                     text,
                     null).text();
         } catch (Exception e) {

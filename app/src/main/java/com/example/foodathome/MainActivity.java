@@ -30,6 +30,7 @@ public class MainActivity extends AppCompatActivity {
         fragmentManager = getSupportFragmentManager();
 
         // --- REQUIREMENT: 9.5 ---
+            // setting up fragments and showing initial fragment
         if (savedInstanceState == null) {
             recipeFragment = new RecipeFragment();
             mapFragment = new MapFragment();
@@ -49,7 +50,7 @@ public class MainActivity extends AppCompatActivity {
                 activeFragment = mapFragment;
             }
         }
-
+            // button management of fragment navigation
         bottomNavigationView.setOnItemSelectedListener(item -> {
             int itemId = item.getItemId();
             Fragment targetFragment = null;
@@ -79,6 +80,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    // initializing permissions for fragment
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);

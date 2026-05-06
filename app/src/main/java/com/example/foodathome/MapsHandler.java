@@ -23,13 +23,23 @@ import com.google.android.libraries.places.api.model.Place;
 import com.google.android.libraries.places.api.net.PlacesClient;
 import com.google.android.libraries.places.api.net.SearchNearbyRequest;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+
+/* METHODS:
+    + setUpMap - initialise map with settings
+        input: googleMap- map object
+    + getDeviceLocation - get the current location of device
+    + updateLocationUI - set map ui to show current location
+    + getLocationPermission -
+ */
+
 public class MapsHandler {
-    public static final String TAG = "MapFragment";
+    public static final String TAG = "myMapFragment";
     public static final int PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 1;
 
     private static final int SEARCH_RADIUS = 10000; // 10km
@@ -76,12 +86,14 @@ public class MapsHandler {
                 Task<Location> locationResult = this.fusedLocationClient.getLastLocation();
                 locationResult.addOnSuccessListener(this.fragmentCallback.requireActivity(), location -> {
                     this.lastLocation = location;
+                    Log.i(TAG, "Device location: " + this.lastLocation.getLatitude() + ", " + this.lastLocation.getLongitude() + " ");
                     if (this.lastLocation != null) {
                         LatLng currentLatLng = new LatLng(this.lastLocation.getLatitude(), this.lastLocation.getLongitude());
                         this.mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng, 15));
-                        showNearbyRestaurants();
-                        findNearbyRestaurants();
                     }
+
+                    showNearbyRestaurants();
+                    findNearbyRestaurants();
                 });
             }
         } catch (SecurityException e) {
@@ -90,106 +102,114 @@ public class MapsHandler {
     }
 
     public void updateLocationUI() {
-        if (this.mMap == null) return;
-        try {
-            this.mMap.setMyLocationEnabled(this.locationPermissionGranted);
-            this.mMap.getUiSettings().setMyLocationButtonEnabled(this.locationPermissionGranted);
+        if (this.mMap != null) {
+            try {
+                this.mMap.setMyLocationEnabled(this.locationPermissionGranted);
+                this.mMap.getUiSettings().setMyLocationButtonEnabled(this.locationPermissionGranted);
 
-            if (!this.locationPermissionGranted) {
-                this.lastLocation = null;
-                getLocationPermission();
+                if (!this.locationPermissionGranted) {
+                    this.lastLocation = null;
+                    getLocationPermission();
+                }
+            } catch (SecurityException e) {
+                Log.e(TAG, "SecurityException: " + e.getMessage());
             }
-        } catch (SecurityException e) {
-            Log.e(TAG, "SecurityException: " + e.getMessage());
         }
     }
 
     public void getLocationPermission() {
-        if (ContextCompat.checkSelfPermission(this.fragmentCallback.requireContext(),
-                Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+        if (ContextCompat.checkSelfPermission(
+                this.fragmentCallback.requireContext(),
+                Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED) {
             this.locationPermissionGranted = true;
         } else {
             this.fragmentCallback.requestPermissions(
-                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                    new String[]{
+                            Manifest.permission.ACCESS_FINE_LOCATION},
                     PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION);
         }
     }
 
-    public void showNearbyRestaurants() {
-        if (this.mMap == null || this.lastLocation == null) return;
+    public void showNearbyRestaurants () {
+        if (this.mMap != null && this.lastLocation != null) {
+            this.mMap.clear();
 
-        this.mMap.clear();
+            LatLng currentLatLng = new LatLng(this.lastLocation.getLatitude(), this.lastLocation.getLongitude());
+            this.mMap.addMarker(new MarkerOptions()
+                    .position(currentLatLng)
+                    .title("your location")
+                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)));
 
-        LatLng currentLatLng = new LatLng(this.lastLocation.getLatitude(), this.lastLocation.getLongitude());
-        this.mMap.addMarker(new MarkerOptions()
-                .position(currentLatLng)
-                .title("your location")
-                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)));
+            List<Place.Field> placeFields = Arrays.asList(Place.Field.NAME, Place.Field.LAT_LNG);
+            CircularBounds circle = CircularBounds.newInstance(currentLatLng, SEARCH_RADIUS);
 
-        List<Place.Field> placeFields = Arrays.asList(Place.Field.NAME, Place.Field.LAT_LNG);
-        CircularBounds circle = CircularBounds.newInstance(currentLatLng, SEARCH_RADIUS);
+            SearchNearbyRequest searchNearbyRequest = SearchNearbyRequest.builder(circle, placeFields)
+                    .setIncludedTypes(LOCATION_FILTER)
+                    .build();
 
-        SearchNearbyRequest searchNearbyRequest = SearchNearbyRequest.builder(circle, placeFields)
-                .setIncludedTypes(LOCATION_FILTER)
-                .setMaxResultCount(20)
-                .build();
 
-        this.placesClient.searchNearby(searchNearbyRequest)
-                .addOnSuccessListener((response) -> {
-                    List<Place> places = response.getPlaces();
-                    for (Place place : places) {
-                        if (place.getLatLng() != null) {
-                            this.mMap.addMarker(new MarkerOptions()
-                                    .position(place.getLatLng())
-                                    .title(place.getName()));
+            this.placesClient.searchNearby(searchNearbyRequest)
+                    .addOnSuccessListener((response) -> {
+                        List<Place> places = response.getPlaces();
+                        for (Place place : places) {
+                            if (place.getLatLng() != null) {
+                                this.mMap.addMarker(new MarkerOptions()
+                                        .position(place.getLatLng())
+                                        .title(place.getName()));
+                            }
+
                         }
-                    }
-                })
-                .addOnFailureListener((exception) -> {
-                    Log.e(TAG, "Search nearby failed: " + exception.getMessage());
-                });
+                    })
+                    .addOnFailureListener((exception) -> {
+                        Log.e(TAG, "Search nearby failed: " + exception.getMessage());
+                    });
+        }
     }
 
     public void findNearbyRestaurants() {
-        if (this.lastLocation == null) return;
-        
-        LatLng currentLatLng = new LatLng(this.lastLocation.getLatitude(), this.lastLocation.getLongitude());
-        CircularBounds circle = CircularBounds.newInstance(currentLatLng, SEARCH_RADIUS);
+        if (this.lastLocation != null) {
 
-        List<Place.Field> placeFields = Arrays.asList(
-                Place.Field.NAME,
-                Place.Field.ADDRESS,
-                Place.Field.WEBSITE_URI
-        );
+            LatLng currentLatLng = new LatLng(this.lastLocation.getLatitude(), this.lastLocation.getLongitude());
+            CircularBounds circle = CircularBounds.newInstance(currentLatLng, SEARCH_RADIUS);
 
-        SearchNearbyRequest searchNearbyRequest = SearchNearbyRequest.builder(circle, placeFields)
-                .setIncludedTypes(LOCATION_FILTER)
-                .setMaxResultCount(10)
-                .build();
+            List<Place.Field> placeFields = Arrays.asList(
+                    Place.Field.NAME,
+                    Place.Field.ADDRESS,
+                    Place.Field.WEBSITE_URI,
+                    Place.Field.LAT_LNG
+            );
 
-        this.placesClient.searchNearby(searchNearbyRequest)
-                .addOnSuccessListener((response) -> {
+            SearchNearbyRequest searchNearbyRequest = SearchNearbyRequest.builder(circle, placeFields)
+                    .setIncludedTypes(LOCATION_FILTER)
+                    .build();
 
+            this.placesClient.searchNearby(searchNearbyRequest)
+                    .addOnSuccessListener((response) -> {
+                        List<Restaurant> restaurants = new ArrayList<>();
+                        for (Place place : response.getPlaces()) {
+                            String name = place.getName();
+                            String website = "Not found";
+                            place.getLatLng();
+                            if (place.getWebsiteUri() != null) {
+                                website = place.getWebsiteUri().toString();
+                            }
 
-                    Map<String,String> result = new HashMap<String,String>();
-                    for (Place place : response.getPlaces()) {
-                        String name = place.getName();
-                        String website = "Not found";
-                        if (place.getWebsiteUri() != null) {
-                            website = place.getWebsiteUri().toString();
+                            Restaurant restaurant = new Restaurant(name,website);
+                            restaurant.setLocation(place.getLatLng());
+                            restaurants.add(restaurant);
+
                         }
-
-                        result.put(name, website);
-
-                    }
-                    this.fragmentCallback.onRestaurantsDone(result);
-                })
-                .addOnFailureListener((exception) -> {
-                    Log.e(TAG, "Search nearby failed for text list: " + exception.getMessage());
-                    this.fragmentCallback.onRestaurantsDone(null);
-                });
+                        this.fragmentCallback.onRestaurantsDone(restaurants);
+                    })
+                    .addOnFailureListener((exception) -> {
+                        Log.e(TAG, "Search nearby failed for text list: " + exception.getMessage());
+                        this.fragmentCallback.onRestaurantsDone(null);
+                    });
+        }
     }
 
+    /*
     public void handleRequestPermissionResult(int requestCode, @NonNull int[] grantResults) {
         this.locationPermissionGranted = false;
         if (requestCode ==  this.PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION) {
@@ -199,5 +219,7 @@ public class MapsHandler {
         }
         this.updateLocationUI();
         this.getDeviceLocation();
-    }
+    }*/
+
+
 }

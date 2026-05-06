@@ -2,6 +2,11 @@ package com.example.foodathome;
 
 import android.content.Context;
 
+/* METHODS:
+    + init- initialise client object
+        input: current context
+*/
+
 public class AiHandler {
     public static GeminiHelper AIClient;
 

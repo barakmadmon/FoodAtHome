@@ -1,8 +1,10 @@
 package com.example.foodathome;
 
+import android.location.Location;
 import androidx.annotation.NonNull;
 
 import com.google.firebase.firestore.Exclude;
+import com.google.android.gms.maps.model.LatLng;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -14,6 +16,7 @@ public class Restaurant {
     private String id; // still isnt implemented in firebase
     private String name;
     private String website;
+    private LatLng location;
     @Exclude
     private List<RestaurantDish> dishes;
     @Exclude
@@ -68,6 +71,20 @@ public class Restaurant {
                 return true;
         }
         return false;
+    }
+
+    public void setLocation(LatLng location) {
+        this.location = location;
+    }
+
+    public LatLng getLocation() {
+        return location;
+    }
+
+    public float getDistance(LatLng location) {
+        float[] distance = new float[1];
+        Location.distanceBetween(this.location.latitude, this.location.longitude, location.latitude, location.longitude,distance);
+        return distance[0];
     }
 
     @Override

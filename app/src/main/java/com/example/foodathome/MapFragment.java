@@ -22,6 +22,19 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+/* object for map fragment ui
+
+METHODS:
+    - showDishList - set dish to visible
+    - showRestaurantList - set restaurant to visible
+    + onMapsReady - initialise map with settings
+        input: googleMap - map object
+    + onRestaurantsDone - update restaurant listview
+        input: result - map of restaurants
+    + showRestaurantDishes - update dishes listview
+        input: restaurant - restaurant object containing dishes
+
+*/
 public class MapFragment extends Fragment implements OnMapReadyCallback {
     private static final String TAG = "MapFragment";
     private MapsHandler mapsHandler = null;
@@ -78,9 +91,8 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
 
         this.mapsHandler = new MapsHandler(this);
 
+        // get map fragment, if not created yet, create it. then load the map
         SupportMapFragment mapFragment = (SupportMapFragment) getChildFragmentManager().findFragmentById(R.id.map_inner);
-
-
         if (mapFragment == null) {
             mapFragment = SupportMapFragment.newInstance();
             getChildFragmentManager().beginTransaction().replace(R.id.map_inner, mapFragment).commit();
@@ -88,17 +100,16 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
         mapFragment.getMapAsync(this);
     }
 
-    public void showDishList() {
+    private void showDishList() {
         if (getActivity() != null) {
             getActivity().runOnUiThread(() -> {
                 dishesContainer.setVisibility(View.VISIBLE);
                 restaurantListView.setVisibility(View.GONE);
             });
         }
-
     }
 
-    public void showRestaurantList() {
+    private void showRestaurantList() {
         if (getActivity() != null) {
             getActivity().runOnUiThread(() -> {
                 dishesContainer.setVisibility(View.GONE);
@@ -110,6 +121,7 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
+        Log.i("myComments","maps ready");
         if (this.mapsHandler != null) {
             this.mapsHandler.setUpMap(googleMap);
             this.mapsHandler.getLocationPermission();
@@ -118,21 +130,20 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
         }
     }
 
-    public void onRestaurantsDone(Map<String, String> result) {
+    public void onRestaurantsDone(List<Restaurant> restaurants) {
         if (getActivity() != null) {
             getActivity().runOnUiThread(() -> {
                 restaurantList.clear();
-                if (result != null) {
-                    for (Map.Entry<String, String> entry : result.entrySet()) {
-                        restaurantList.add(new Restaurant(entry.getKey(), entry.getValue()));
-                    }
+                if (restaurants != null) {
+                    restaurantList.addAll(restaurants);
                 }
+
                 restaurantAdapter.notifyDataSetChanged();
             });
         }
     }
 
-    public void showRestaurantDishes(Restaurant restaurant) {
+    private void showRestaurantDishes(Restaurant restaurant) {
         new Thread(() -> {
             if(!restaurant.isLoaded())
                 RestaurantHelper.getRestaurantDishes(restaurant);

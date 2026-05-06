@@ -23,6 +23,24 @@ import org.json.JSONObject;
 
 import java.util.concurrent.Semaphore;
 
+/*
+object for recipe fragment ui
+
+METHODS:
+    + onCreateView - initialise
+    + loadRecipe - load recipe from database, if not exists gets it from ai, and then update text view with the recipe
+        input: dish - name of dish
+               details- extra details about dish if there are
+               activity - current activity
+    - getRecipe - get recipe from ai and update it in recipe
+        input: ai handler,
+               recipe - object to contain output from ai, need to contain name
+               details- extra details about dish if there are
+    - prepareRecipe - format ai output and updates recipe object
+        input: response - response from ai
+               recipe - recipe object to update
+*/
+
 public class RecipeFragment extends Fragment {
     private Button saveRecipeBT; // currently isnt called for firebase design sakes
     private TextView recipeTV;
@@ -31,22 +49,29 @@ public class RecipeFragment extends Fragment {
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        View view = inflater.inflate(R.layout.fragment_recipe, container, false);
+        return inflater.inflate(R.layout.fragment_recipe, container, false);
+    }
+
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
         Activity activity = getActivity();
         recipeTV = view.findViewById(R.id.recipeTV);
+        saveRecipeBT = view.findViewById(R.id.saveRecipeBT);
 
         String dish = activity.getIntent().getStringExtra("DISH");
         String details = activity.getIntent().getStringExtra("DETAILS");
 
-        if (recipeTV != null)
-            if ( dish != null && !dish.isEmpty())
-                loadRecipe(dish,details,activity);
-            else {
+        if (recipeTV != null) {
+            if (dish != null && !dish.isEmpty()) {
+                recipeTV.setText("loading...");
+                loadRecipe(dish, details, activity);
+
+            } else {
                 recipeTV.setText("recipe not found");
+                saveRecipeBT.setVisibility(View.INVISIBLE);
             }
-
-
-        return view;
+        }
     }
 
     public void loadRecipe(String dish,String details, Activity activity) {
@@ -59,7 +84,7 @@ public class RecipeFragment extends Fragment {
 
         final String dummyDetails = details; // because this is dum dum
         new Thread(() -> {
-            getRecipe(AiHandler.AIClient, recipe, new String(dummyDetails));
+            /*getRecipe(AiHandler.AIClient, recipe, new String(dummyDetails));
 
             try {
                 aiSem.acquire();   // waits for signal
@@ -72,7 +97,7 @@ public class RecipeFragment extends Fragment {
                 Log.i("myComments", "ui release");// waits for signal
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
-            }
+            }*/
 
             if (activity != null) {
                 activity.runOnUiThread(new Runnable() {
@@ -80,6 +105,7 @@ public class RecipeFragment extends Fragment {
                     public void run() {
                         Log.i("myComments", "posting recipe");
                         recipeTV.setText(recipe.toString());
+                        saveRecipeBT.setVisibility(View.VISIBLE);
                     }
                 });
             }
@@ -87,7 +113,7 @@ public class RecipeFragment extends Fragment {
 
     }
 
-    public void getRecipe(GeminiHelper aiHandler,Recipe recipe,final String details){
+    private void getRecipe(GeminiHelper aiHandler,Recipe recipe,final String details){
         if(recipe != null && !recipe.getName().isEmpty()) {
             //"chicken soup", "chicken soup made with love not chicken and spring onions"
             String request = "please answer me in the given format for the dish: \"" +recipe.getName()+"\"";
@@ -106,7 +132,7 @@ public class RecipeFragment extends Fragment {
 
     }
 
-    public void prepareRecipe(String response, Recipe recipe) {
+    private void prepareRecipe(String response, Recipe recipe) {
         JSONObject jsonRecipe;
 
         if(!response.equals("this isn't a dish")) {
