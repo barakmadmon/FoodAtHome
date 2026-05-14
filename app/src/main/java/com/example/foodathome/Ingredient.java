@@ -5,6 +5,7 @@ import com.google.firebase.firestore.Exclude;
 import java.util.Objects;
 
 public class Ingredient {
+    @Exclude
     private String id;
     private String name;
     private float price;
@@ -56,6 +57,10 @@ public class Ingredient {
         return String.format("%s, %f, %f",name,price,amount);
     }
 
+    /**
+     * Calculate price based on amount and unit size.
+     * @return The calculated price.
+     */
     public float calcPrice() {
         if(unitSize != 0)
             return price*amount/unitSize;
