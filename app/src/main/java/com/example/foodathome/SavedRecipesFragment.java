@@ -67,6 +67,7 @@ public class SavedRecipesFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
+        Log.i("myComments", "onResume called");
         loadSavedRecipes();
     }
 
