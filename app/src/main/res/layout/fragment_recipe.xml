@@ -4,7 +4,8 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fillViewport="true">
+    android:fillViewport="true"
+    android:background="@color/cardview_dark_background">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -12,12 +13,39 @@
         android:orientation="vertical"
         android:padding="16dp">
 
+        <ListView
+            android:id="@+id/ingredientsListView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:divider="@color/orange_500"
+            android:dividerHeight="2dp"
+            android:background="@drawable/listview_border"/>
+
+        <TextView
+            android:id="@+id/recipeTotalPriceTV"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:textSize="16sp"
+            android:textColor="@android:color/white"/>
+
+        <TextView
+            android:id="@+id/originalDishTotalPriceTV"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:textSize="16sp"
+            android:textColor="@android:color/white"/>
+
         <TextView
             android:id="@+id/recipeTV"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:textSize="13sp" />
+            android:textSize="13sp"
+            android:textColor="@android:color/white"/>
+
 
         <Button
             android:id="@+id/saveRecipeBT"
@@ -25,8 +53,9 @@
             android:layout_height="wrap_content"
             android:layout_gravity= "center"
             android:layout_marginTop="16dp"
-            android:backgroundTint="@color/cardview_dark_background"
-            android:text="Save Recipe" />
+            android:backgroundTint="@color/orange_500"
+            android:text="Save Recipe"
+            android:textColor="@android:color/white"/>
 
     </LinearLayout>
 </ScrollView>

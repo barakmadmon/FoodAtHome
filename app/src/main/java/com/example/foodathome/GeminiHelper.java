@@ -31,24 +31,32 @@ public class GeminiHelper {
 
 
     public void askGemini(String text, Callback callback) {
-        Handler mainHandler = new Handler(Looper.getMainLooper());
-
         new Thread(() -> {
             String result = "";
             try {
-                result = getResponse(text);
-                this.succesfulResponse = result != null && !result.isEmpty() && !result.contains("com.google.genai.errors.ClientException");
-                Log.i("myComments", "got response");
+                int tries = 4;
+                do
+                {
+                    result = getResponse(text);
+                    tries--;
 
-            } catch (Exception e) {
-                Log.i("myComments", e.toString());
+                    // other errors usually means asking again would not yield responses
+                    succesfulResponse= result != null && !result.isEmpty() && !result.startsWith("error:com.google.genai.errors.ServerException: 503");
+                    if (!succesfulResponse) {
+                        Thread.sleep(1000);
+                    }
+                } while (tries > 0 && !succesfulResponse);
+
+                this.succesfulResponse = result != null && !result.isEmpty() && !result.contains("error:com.google.genai.errors");
+                Log.i("myComments", "got response");
+                Log.i("myComments", result);
+
+            } catch (Throwable t) {
+                Log.i("myComments", t.toString());
             }
 
             String finalResult = result;
-            mainHandler.post(() -> {
-                callback.onDone(finalResult);
-            });
-
+            callback.onDone(finalResult);
         }).start();
     }
 

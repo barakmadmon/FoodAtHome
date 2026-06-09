@@ -20,25 +20,17 @@ import com.google.android.gms.maps.SupportMapFragment;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
-/* object for map fragment ui
+import android.content.pm.PackageManager;
 
-METHODS:
-    - showDishList - set dish to visible
-    - showRestaurantList - set restaurant to visible
-    + onMapsReady - initialise map with settings
-        input: googleMap - map object
-    + onRestaurantsDone - update restaurant listview
-        input: result - map of restaurants
-    + showRestaurantDishes - update dishes listview
-        input: restaurant - restaurant object containing dishes
-
-*/
+/**
+ * Fragment for displaying nearby restaurants on a map and in a list.
+ * Users can select a restaurant to view its menu.
+ */
 public class MapFragment extends Fragment implements OnMapReadyCallback {
     private static final String TAG = "MapFragment";
     private MapsHandler mapsHandler = null;
-    
+
     private ListView restaurantListView;
     private ArrayAdapter<Restaurant> restaurantAdapter;
     private List<Restaurant> restaurantList = new ArrayList<>();
@@ -61,7 +53,8 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
         super.onViewCreated(view, savedInstanceState);
 
         restaurantListView = view.findViewById(R.id.restaurantListView);
-        restaurantAdapter = new ArrayAdapter<>(requireContext(), R.layout.restaurant_item, restaurantList);
+
+        restaurantAdapter = new ArrayAdapter<>(requireContext(), R.layout.white_text_list_item, restaurantList);
         restaurantListView.setAdapter(restaurantAdapter);
 
         dishesContainer = view.findViewById(R.id.dishesContainer);
@@ -73,25 +66,20 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
 
         restaurantListView.setOnItemClickListener((parent, v, position, id) -> {
             currentRestaurant = restaurantList.get(position);
-            Log.d(TAG, "Clicked on restaurant: " + currentRestaurant.getName());
-
             showRestaurantDishes(currentRestaurant);
         });
 
         dishListView.setOnItemClickListener((parent, v, position, id) -> {
             if (currentRestaurant != null) {
                 RestaurantDish dish = currentRestaurant.getDishes().get(position);
-                Log.d(TAG, "Clicked on dish: " + dish.getName());
-
                 if (getActivity() instanceof MainActivity) {
-                    ((MainActivity) getActivity()).navigateToRecipe(dish.getName(), dish.getDetails());
+                    ((MainActivity) getActivity()).navigateToRecipe(dish.getName(), dish.getDetails(), dish.getId(), dish.getPrice(),currentRestaurant.getName());
                 }
             }
         });
 
         this.mapsHandler = new MapsHandler(this);
 
-        // get map fragment, if not created yet, create it. then load the map
         SupportMapFragment mapFragment = (SupportMapFragment) getChildFragmentManager().findFragmentById(R.id.map_inner);
         if (mapFragment == null) {
             mapFragment = SupportMapFragment.newInstance();
@@ -100,6 +88,9 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
         mapFragment.getMapAsync(this);
     }
 
+    /**
+     * Shows the list of dishes for a selected restaurant and hides the main restaurant list.
+     */
     private void showDishList() {
         if (getActivity() != null) {
             getActivity().runOnUiThread(() -> {
@@ -109,6 +100,9 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
         }
     }
 
+    /**
+     * Shows the main restaurant list and hides the dish list view.
+     */
     private void showRestaurantList() {
         if (getActivity() != null) {
             getActivity().runOnUiThread(() -> {
@@ -121,15 +115,23 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
-        Log.i("myComments","maps ready");
+        Log.i("myComments", "open map");
         if (this.mapsHandler != null) {
+            Log.i("myComments", "map not null");
             this.mapsHandler.setUpMap(googleMap);
             this.mapsHandler.getLocationPermission();
             this.mapsHandler.updateLocationUI();
-            this.mapsHandler.getDeviceLocation();
+
+            if (mapsHandler.hasLocationPermission()) {
+                startLocationUpdates();
+            }
         }
     }
 
+    /**
+     * Callback method to update the restaurant list when data is fetched.
+     * @param restaurants The list of restaurants to display.
+     */
     public void onRestaurantsDone(List<Restaurant> restaurants) {
         if (getActivity() != null) {
             getActivity().runOnUiThread(() -> {
@@ -137,26 +139,64 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
                 if (restaurants != null) {
                     restaurantList.addAll(restaurants);
                 }
-
                 restaurantAdapter.notifyDataSetChanged();
             });
         }
     }
 
+    /**
+     * Fetches and displays the dishes for a given restaurant.
+     * @param restaurant The restaurant whose dishes will be shown.
+     */
     private void showRestaurantDishes(Restaurant restaurant) {
         new Thread(() -> {
-            if(!restaurant.isLoaded())
-                RestaurantHelper.getRestaurantDishes(restaurant);
+            RestaurantHelper.searchResteraunt(restaurant, restaurant.getWebsite());
 
             if (getActivity() != null) {
                 getActivity().runOnUiThread(() -> {
                     restaurantTitleTextView.setText(restaurant.getName());
-                    dishAdapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_list_item_1, restaurant.getDishes());
+                    dishAdapter = new ArrayAdapter<>(requireContext(), R.layout.white_text_list_item, restaurant.getDishes());
                     dishListView.setAdapter(dishAdapter);
                 });
             }
-
             showDishList();
+        }).start();
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        if (requestCode == MapsHandler.PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION) {
+            boolean granted = grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED;
+            if (mapsHandler != null) {
+                mapsHandler.setLocationPermissionGranted(granted);
+                mapsHandler.updateLocationUI();
+                if (granted) {
+                    startLocationUpdates();
+                }
+            }
+        } else {
+            super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        }
+    }
+
+    /**
+     * Starts a background thread to periodically fetch the device's location.
+     */
+    public void startLocationUpdates() {
+        new Thread(() -> {
+            while (true) {
+                if (mapsHandler != null && mapsHandler.hasLocationPermission() && getActivity() != null) {
+                    getActivity().runOnUiThread(() -> mapsHandler.getDeviceLocation());
+                }
+                try {
+                    Thread.sleep(5000);
+                    Log.i(TAG, "SEARCHING AGAIN");
+                } catch (InterruptedException e) {
+                    Log.e(TAG, "Location update thread interrupted", e);
+                    Thread.currentThread().interrupt(); // Restore the interrupted status
+                    break; // Exit the loop
+                }
+            }
         }).start();
     }
 }

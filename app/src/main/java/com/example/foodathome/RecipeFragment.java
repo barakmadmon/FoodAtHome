@@ -1,16 +1,13 @@
 package com.example.foodathome;
 
-import static android.content.Intent.getIntent;
-
 import android.app.Activity;
-import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
-import android.widget.EditText;
+import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -20,31 +17,32 @@ import androidx.fragment.app.Fragment;
 
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.Map;
 import java.util.concurrent.Semaphore;
 
-/*
-object for recipe fragment ui
-
-METHODS:
-    + onCreateView - initialise
-    + loadRecipe - load recipe from database, if not exists gets it from ai, and then update text view with the recipe
-        input: dish - name of dish
-               details- extra details about dish if there are
-               activity - current activity
-    - getRecipe - get recipe from ai and update it in recipe
-        input: ai handler,
-               recipe - object to contain output from ai, need to contain name
-               details- extra details about dish if there are
-    - prepareRecipe - format ai output and updates recipe object
-        input: response - response from ai
-               recipe - recipe object to update
-*/
-
+/**
+ * Fragment responsible for displaying a recipe, either by generating it via AI
+ * or by loading a previously saved version.
+ */
 public class RecipeFragment extends Fragment {
-    private Button saveRecipeBT; // currently isnt called for firebase design sakes
+    private static final Logger log = LoggerFactory.getLogger(RecipeFragment.class);
+    private Button saveRecipeBT;
     private TextView recipeTV;
+    private ListView ingredientsListView;
+    private TextView recipeTotalPriceTV;
+    private TextView originalDishTotalPriceTV;
+    private Recipe currentRecipe;
     static final Semaphore aiSem = new Semaphore(0);
+
+    private String dishToLoad = null;
+    private String originRestaurant = null;
+    private String detailsToLoad = null;
+    private String dishIdToLoad = null;
+    private double priceToLoad = 0.0;
 
     @Nullable
     @Override
@@ -55,90 +53,199 @@ public class RecipeFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        Activity activity = getActivity();
         recipeTV = view.findViewById(R.id.recipeTV);
         saveRecipeBT = view.findViewById(R.id.saveRecipeBT);
+        ingredientsListView = view.findViewById(R.id.ingredientsListView);
+        recipeTotalPriceTV = view.findViewById(R.id.recipeTotalPriceTV);
+        originalDishTotalPriceTV = view.findViewById(R.id.originalDishTotalPriceTV);
 
-        String dish = activity.getIntent().getStringExtra("DISH");
-        String details = activity.getIntent().getStringExtra("DETAILS");
-
-        if (recipeTV != null) {
-            if (dish != null && !dish.isEmpty()) {
-                recipeTV.setText("loading...");
-                loadRecipe(dish, details, activity);
-
-            } else {
-                recipeTV.setText("recipe not found");
-                saveRecipeBT.setVisibility(View.INVISIBLE);
+        // Sets up the click listener for the "Save Recipe" button.
+        saveRecipeBT.setOnClickListener(v -> {
+            if (currentRecipe != null) {
+                FirebaseDataHandler.saveRecipe(currentRecipe, result -> {
+                    if (getActivity() != null) {
+                        getActivity().runOnUiThread(() -> {
+                            Toast.makeText(getContext(), result, Toast.LENGTH_SHORT).show();
+                        });
+                    }
+                });
             }
+        });
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (dishToLoad != null) {
+            recipeTV.setText("loading...");
+            saveRecipeBT.setVisibility(View.INVISIBLE);
+
+            loadRecipe(dishToLoad, detailsToLoad, dishIdToLoad, priceToLoad, originRestaurant,getActivity());
+
+            // Clear the fields to prevent reloading on subsequent onResume calls
+            dishToLoad = null;
+            detailsToLoad = null;
+            dishIdToLoad = null;
+            priceToLoad = 0.0;
         }
     }
 
-    public void loadRecipe(String dish,String details, Activity activity) {
+    /**
+     * Loads a recipe. It first checks Firestore for an existing recipe for the given dishId.
+     * If not found, it generates a new one using the AI.
+     * @param dish The name of the dish.
+     * @param details Additional details for the AI if generating a new recipe.
+     * @param dishId The unique ID of the dish to check against Firestore.
+     * @param price The price of the dish.
+     * @param originRestaurant the restaurant the dish is from.
+     * @param activity The parent activity context.
+     */
+    public void loadRecipe(String dish, String details, String dishId, double price,String originRestaurant ,Activity activity) {
         if (details == null) {
             details = "";
         }
 
-        Recipe recipe = new Recipe(dish);
-        Log.i("myComments", dish);
+        currentRecipe = new Recipe(dish,originRestaurant);
+        currentRecipe.setOriginDish(dishId);
+        currentRecipe.setOriginalPrice(price);
+        final String dummyDetails = details;
 
-        final String dummyDetails = details; // because this is dum dum
         new Thread(() -> {
-            /*getRecipe(AiHandler.AIClient, recipe, new String(dummyDetails));
+            final Semaphore checkSem = new Semaphore(0);
+            final Recipe[] foundRecipe = {null};
+
+            FirebaseDataHandler.checkExistingRecipe(dishId, recipe -> {
+                Log.i("myComments", "Found recipe: " + recipe);
+                foundRecipe[0] = recipe;
+                checkSem.release();
+            });
 
             try {
-                aiSem.acquire();   // waits for signal
-                Log.i("myComments", "weight release");
-                Ingredients_Handler.updateIngredientWeight(recipe);
-                // waits for signal
-                Ingredients_Handler.getIngredients(recipe.getIngredients().keySet());
-                Ingredients_Handler.ingSem.acquire(2);
-
-                Log.i("myComments", "ui release");// waits for signal
+                checkSem.acquire();
             } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }*/
+                Thread.currentThread().interrupt();
+                Log.e("RecipeFragment", "Interrupted while checking existing recipe", e);
+            }
 
-            if (activity != null) {
-                activity.runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        Log.i("myComments", "posting recipe");
-                        recipeTV.setText(recipe.toString());
-                        saveRecipeBT.setVisibility(View.VISIBLE);
-                    }
-                });
+            if (foundRecipe[0] != null) {
+                currentRecipe = foundRecipe[0];
+                updateUiWithRecipe(activity);
+            } else {
+                getRecipe(AiHandler.AIClient, currentRecipe, dummyDetails);
+
+                try {
+                    aiSem.acquire();
+                    Ingredients_Handler.updateIngredientWeight(currentRecipe);
+                    Ingredients_Handler.getIngredients(currentRecipe.getIngredients().keySet());
+                    Ingredients_Handler.ingSem.acquire(2);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException(e);
+                }
+
+                updateUiWithRecipe(activity);
             }
         }).start();
-
     }
 
-    private void getRecipe(GeminiHelper aiHandler,Recipe recipe,final String details){
-        if(recipe != null && !recipe.getName().isEmpty()) {
-            //"chicken soup", "chicken soup made with love not chicken and spring onions"
-            String request = "please answer me in the given format for the dish: \"" +recipe.getName()+"\"";
+    /**
+     * Helper method to update the TextView and Button on the main UI thread.
+     * @param activity The parent activity context.
+     */
+    private void updateUiWithRecipe(Activity activity) {
+        if (activity != null) {
+            activity.runOnUiThread(() -> {
+                // We add another null check for the view, just in case the fragment
+                // was detached while the background thread was running.
+                if (getView() != null) {
+                    if (currentRecipe.isLoaded()) {
+                        recipeTV.setText(currentRecipe.getRecipe());
+                        saveRecipeBT.setVisibility(View.VISIBLE);
 
-            if(!details.isEmpty()) {
-                request += ", here is some extra details about the dish: \"" + details+"\"";
+                        ArrayList<Map.Entry<Ingredient, String>> ingredients = new ArrayList<>(currentRecipe.getIngredients().entrySet());
+                        IngredientAdapter adapter = new IngredientAdapter(getContext(), ingredients);
+                        ingredientsListView.setAdapter(adapter);
+
+                        double recipeTotalPrice = 0;
+                        for (Map.Entry<Ingredient, String> entry : ingredients) {
+                            recipeTotalPrice += entry.getKey().getPrice();
+                        }
+                        recipeTotalPriceTV.setText(String.format("Recipe Total Price: %.2f", recipeTotalPrice));
+                        originalDishTotalPriceTV.setText(String.format("Original Dish Total Price: %.2f", currentRecipe.getOriginalPrice()));
+                    }
+                    else {
+                        ingredientsListView.setVisibility(View.INVISIBLE);
+                        recipeTotalPriceTV.setText("no price avaible");
+                        originalDishTotalPriceTV.setText(String.format("Original Dish Total Price: %.2f", currentRecipe.getOriginalPrice()));
+                        recipeTV.setText("recipe not found");
+                        saveRecipeBT.setVisibility(View.INVISIBLE);
+                    }
+                }
+            });
+        }
+    }
+
+    /**
+     * Displays a recipe that was selected from the saved recipes list.
+     * Hides the save button since it's already saved.
+     * @param recipe The Recipe object to display.
+     */
+    public void displayRecipe(Recipe recipe) {
+        this.currentRecipe = recipe;
+        if (getActivity() != null) {
+            getActivity().runOnUiThread(() -> {
+                if (getView() != null) {
+                    Log.i("myComments", recipe.getRecipe());
+                    recipeTV.setText(recipe.getRecipe());
+                    saveRecipeBT.setVisibility(View.INVISIBLE);
+
+                    ArrayList<Map.Entry<Ingredient, String>> ingredients = new ArrayList<>(recipe.getIngredients().entrySet());
+                    IngredientAdapter adapter = new IngredientAdapter(getContext(), ingredients);
+                    ingredientsListView.setAdapter(adapter);
+
+                    double recipeTotalPrice = 0;
+                    for (Map.Entry<Ingredient, String> entry : ingredients) {
+                        recipeTotalPrice += entry.getKey().getPrice();
+                    }
+                    recipeTotalPriceTV.setText(String.format("Recipe Total Price: %.2f", recipeTotalPrice));
+                    originalDishTotalPriceTV.setText(String.format("Original Dish Total Price: %.2f", recipe.getOriginalPrice()));
+                }
+            });
+        }
+    }
+
+    /**
+     * Constructs the prompt and sends a request to the Gemini AI to generate a recipe.
+     * @param aiHandler The GeminiHelper instance.
+     * @param recipe The recipe object to be populated.
+     * @param details Extra context about the dish for the AI.
+     */
+    private void getRecipe(GeminiHelper aiHandler, Recipe recipe, final String details) {
+        if (recipe != null && !recipe.getName().isEmpty()) {
+            String request = "please answer me in the given format for the dish: \"" + recipe.getName() + "\"";
+
+            if (!details.isEmpty()) {
+                request += ", here is some extra details about the dish: \"" + details + "\"";
             }
             request += ". if its not a real dish answer with 'this isn't a dish', else answer me with a json format that starts with the 'recipe' : 'recipe steps...', and then individual ingredients with their amount as value (amount will be given as string for example- 'flour' : '50 grams'). do not respond with any other output except from the json itself";
-            Log.i("myComments", request);
             aiHandler.askGemini(request, r -> {
-                Log.i("myComments", r);
+                Log.i("myComments", "got recipe response:\n" +r);
                 prepareRecipe(r, recipe);
                 aiSem.release();
             });
         }
-
     }
 
+    /**
+     * Parses the JSON response from the AI and populates the Recipe object.
+     * @param response The raw JSON string from the AI.
+     * @param recipe The recipe object to populate.
+     */
     private void prepareRecipe(String response, Recipe recipe) {
         JSONObject jsonRecipe;
-
-        if(!response.equals("this isn't a dish")) {
+        if (response != null && !response.equals("this isn't a dish")) {
             try {
-                response = response.replace("json","");
-                response = response.replace("```","");
+                response = response.replace("json", "").replace("```", "").trim();
                 jsonRecipe = new JSONObject(response);
                 java.util.Iterator<String> keys = jsonRecipe.keys();
 
@@ -146,14 +253,16 @@ public class RecipeFragment extends Fragment {
                     String key = keys.next();
                     Object value = jsonRecipe.get(key);
 
-                    if(!key.equals("recipe"))
+                    if (!key.equals("recipe"))
                         recipe.addIngredient(new Ingredient(key), value.toString());
                     else
                         recipe.setRecipe(value.toString());
                 }
-            }
-            catch (JSONException e) {
+
+                recipe.setLoaded(true);
+            } catch (JSONException e) {
                 recipe.setRecipe("error getting recipe");
+                recipe.setLoaded(false);
             }
         }
     }

@@ -5,8 +5,6 @@ import android.content.pm.PackageManager;
 import android.location.Location;
 import android.util.Log;
 
-import androidx.annotation.NonNull;
-import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
@@ -25,33 +23,30 @@ import com.google.android.libraries.places.api.net.SearchNearbyRequest;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
-
-/* METHODS:
-    + setUpMap - initialise map with settings
-        input: googleMap- map object
-    + getDeviceLocation - get the current location of device
-    + updateLocationUI - set map ui to show current location
-    + getLocationPermission -
+/**
+ * Handles Google Maps and Places API interactions.
  */
-
 public class MapsHandler {
     public static final String TAG = "myMapFragment";
     public static final int PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 1;
 
-    private static final int SEARCH_RADIUS = 10000; // 10km
+    private static final int SEARCH_RADIUS = 5000; // 5km
     private static final List<String> LOCATION_FILTER = Arrays.asList("restaurant", "cafe", "meal_takeaway");
 
-    private MapFragment fragmentCallback;
-    private FusedLocationProviderClient fusedLocationClient;
+    private final MapFragment fragmentCallback;
+    private final FusedLocationProviderClient fusedLocationClient;
     private GoogleMap mMap;
-    private PlacesClient placesClient;
+    private final PlacesClient placesClient;
     private boolean locationPermissionGranted;
     private Location lastLocation;
 
+    /**
+     * Constructor for MapsHandler.
+     *
+     * @param fragment The fragment that this handler is associated with.
+     */
     public MapsHandler(MapFragment fragment) {
         this.fragmentCallback = fragment;
 
@@ -64,6 +59,29 @@ public class MapsHandler {
         this.fusedLocationClient = LocationServices.getFusedLocationProviderClient(fragment.requireContext());
     }
 
+    /**
+     * Checks if the app has been granted location permission.
+     *
+     * @return True if location permission is granted, false otherwise.
+     */
+    public boolean hasLocationPermission() {
+        return this.locationPermissionGranted;
+    }
+
+    /**
+     * Sets the location permission status.
+     *
+     * @param isGranted True if the permission has been granted, false otherwise.
+     */
+    public void setLocationPermissionGranted(boolean isGranted) {
+        this.locationPermissionGranted = isGranted;
+    }
+
+    /**
+     * Sets up the Google Map with custom styling.
+     *
+     * @param googleMap The GoogleMap object to be set up.
+     */
     public void setUpMap(GoogleMap googleMap) {
         this.mMap = googleMap;
         boolean success = googleMap.setMapStyle(
@@ -80,20 +98,24 @@ public class MapsHandler {
         }
     }
 
+    /**
+     * Gets the device's last known location and moves the map camera to that location.
+     */
     public void getDeviceLocation() {
         try {
             if (this.locationPermissionGranted) {
                 Task<Location> locationResult = this.fusedLocationClient.getLastLocation();
                 locationResult.addOnSuccessListener(this.fragmentCallback.requireActivity(), location -> {
-                    this.lastLocation = location;
-                    Log.i(TAG, "Device location: " + this.lastLocation.getLatitude() + ", " + this.lastLocation.getLongitude() + " ");
-                    if (this.lastLocation != null) {
-                        LatLng currentLatLng = new LatLng(this.lastLocation.getLatitude(), this.lastLocation.getLongitude());
-                        this.mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng, 15));
+                    if (this.lastLocation != location) {
+                        this.lastLocation = location;
+                        if (this.lastLocation != null) {
+                            LatLng currentLatLng = new LatLng(this.lastLocation.getLatitude(), this.lastLocation.getLongitude());
+                            this.mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng, 15));
+                            findAndShowNearbyRestaurants();
+                        } else {
+                            Log.e(TAG, "Location is null");
+                        }
                     }
-
-                    showNearbyRestaurants();
-                    findNearbyRestaurants();
                 });
             }
         } catch (SecurityException e) {
@@ -101,6 +123,9 @@ public class MapsHandler {
         }
     }
 
+    /**
+     * Updates the map's UI settings based on whether location permission has been granted.
+     */
     public void updateLocationUI() {
         if (this.mMap != null) {
             try {
@@ -117,6 +142,9 @@ public class MapsHandler {
         }
     }
 
+    /**
+     * Prompts the user for location permission if it has not already been granted.
+     */
     public void getLocationPermission() {
         if (ContextCompat.checkSelfPermission(
                 this.fragmentCallback.requireContext(),
@@ -131,7 +159,10 @@ public class MapsHandler {
         }
     }
 
-    public void showNearbyRestaurants () {
+    /**
+     * Finds nearby restaurants, shows them on the map, and passes the results to the fragment callback.
+     */
+    public void findAndShowNearbyRestaurants() {
         if (this.mMap != null && this.lastLocation != null) {
             this.mMap.clear();
 
@@ -141,16 +172,21 @@ public class MapsHandler {
                     .title("your location")
                     .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)));
 
-            List<Place.Field> placeFields = Arrays.asList(Place.Field.NAME, Place.Field.LAT_LNG);
+            List<Place.Field> placeFields = Arrays.asList(
+                    Place.Field.NAME,
+                    Place.Field.ADDRESS,
+                    Place.Field.WEBSITE_URI,
+                    Place.Field.LAT_LNG
+            );
+
             CircularBounds circle = CircularBounds.newInstance(currentLatLng, SEARCH_RADIUS);
-
             SearchNearbyRequest searchNearbyRequest = SearchNearbyRequest.builder(circle, placeFields)
-                    .setIncludedTypes(LOCATION_FILTER)
+                    .setIncludedTypes(LOCATION_FILTER).setMaxResultCount(20)
                     .build();
-
 
             this.placesClient.searchNearby(searchNearbyRequest)
                     .addOnSuccessListener((response) -> {
+                        List<Restaurant> restaurants = new ArrayList<>();
                         List<Place> places = response.getPlaces();
                         for (Place place : places) {
                             if (place.getLatLng() != null) {
@@ -159,67 +195,28 @@ public class MapsHandler {
                                         .title(place.getName()));
                             }
 
-                        }
-                    })
-                    .addOnFailureListener((exception) -> {
-                        Log.e(TAG, "Search nearby failed: " + exception.getMessage());
-                    });
-        }
-    }
-
-    public void findNearbyRestaurants() {
-        if (this.lastLocation != null) {
-
-            LatLng currentLatLng = new LatLng(this.lastLocation.getLatitude(), this.lastLocation.getLongitude());
-            CircularBounds circle = CircularBounds.newInstance(currentLatLng, SEARCH_RADIUS);
-
-            List<Place.Field> placeFields = Arrays.asList(
-                    Place.Field.NAME,
-                    Place.Field.ADDRESS,
-                    Place.Field.WEBSITE_URI,
-                    Place.Field.LAT_LNG
-            );
-
-            SearchNearbyRequest searchNearbyRequest = SearchNearbyRequest.builder(circle, placeFields)
-                    .setIncludedTypes(LOCATION_FILTER)
-                    .build();
-
-            this.placesClient.searchNearby(searchNearbyRequest)
-                    .addOnSuccessListener((response) -> {
-                        List<Restaurant> restaurants = new ArrayList<>();
-                        for (Place place : response.getPlaces()) {
                             String name = place.getName();
                             String website = "Not found";
-                            place.getLatLng();
                             if (place.getWebsiteUri() != null) {
                                 website = place.getWebsiteUri().toString();
                             }
 
-                            Restaurant restaurant = new Restaurant(name,website);
+                            Restaurant restaurant = new Restaurant(name, website);
                             restaurant.setLocation(place.getLatLng());
                             restaurants.add(restaurant);
-
                         }
+
+                        if (this.lastLocation != null) {
+                            LatLng userLatLng = new LatLng(this.lastLocation.getLatitude(), this.lastLocation.getLongitude());
+                            restaurants.sort((r1, r2) -> Float.compare(r1.calculateDistance(userLatLng), r2.calculateDistance(userLatLng)));
+                        }
+
                         this.fragmentCallback.onRestaurantsDone(restaurants);
                     })
                     .addOnFailureListener((exception) -> {
-                        Log.e(TAG, "Search nearby failed for text list: " + exception.getMessage());
+                        Log.e(TAG, "Search nearby failed: " + exception.getMessage());
                         this.fragmentCallback.onRestaurantsDone(null);
                     });
         }
     }
-
-    /*
-    public void handleRequestPermissionResult(int requestCode, @NonNull int[] grantResults) {
-        this.locationPermissionGranted = false;
-        if (requestCode ==  this.PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                this.locationPermissionGranted = true;
-            }
-        }
-        this.updateLocationUI();
-        this.getDeviceLocation();
-    }*/
-
-
 }

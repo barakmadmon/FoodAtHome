@@ -1,7 +1,5 @@
 package com.example.foodathome;
 
-import android.os.Handler;
-import android.os.Looper;
 import android.util.Log;
 
 import org.json.JSONException;
@@ -12,22 +10,23 @@ import org.slf4j.LoggerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.HttpsURLConnection;
 import java.net.URL;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.locks.Lock;
 
 public class Ingredients_Handler {
-    final static String MARKETS[] = {"https://www.rami-levy.co.il/he","https://www.shufersal.co.il/online"};
-    final static String FREE_ITEMS[] = {"water"};
-    static final Semaphore aiSem = new Semaphore(0);
-    static final Semaphore ingSem = new Semaphore(0);
-    private static final Logger log = LoggerFactory.getLogger(Ingredients_Handler.class);
+    private final static String MARKETS[] = {"https://www.rami-levy.co.il/he","https://www.shufersal.co.il/online"};
+    private final static String FREE_ITEMS[] = {"water"};
+    private static final Semaphore aiSem = new Semaphore(0);
+    public static final Semaphore ingSem = new Semaphore(0);
 
+    /**
+     * This method is intended to get ingredients, but its implementation is currently empty.
+     * @return An empty string.
+     */
     public String getIngredients() {
         SSLContext sslContext;
         URL url;
@@ -37,12 +36,16 @@ public class Ingredients_Handler {
         return  output;
     }
 
+    /**
+     * Updates the weight of each ingredient in a recipe by using an AI service.
+     * The AI is prompted to return the weight in grams for solids and volume in ml for liquids.
+     * @param recipe The recipe whose ingredients' weights are to be updated.
+     */
     public static void updateIngredientWeight(Recipe recipe)
     {
         new Thread(() -> {
 
             Log.i("myComments","getting weight");
-            //Handler mainHandler = new Handler(Looper.getMainLooper());
             String request = "please answer me in the given format: each ingridient has a given name and amount, for each ingredient answer me how much it'll weight in grams.if the ingredient is a liquid give me amount in ml. answer me with a json format 'ingridient_name' : 'weight/volume', the 'weight/volume' will only include the number without measure unit (amount will be given as string for example- 'tomato': '3 medium' will become 'tomato' : '400'. or 'water': '400 ml' will become 'water' : '400' ). do not respond with any other output except from the json itself";
             request += " here is the list of items:\n";
             for (Map.Entry<Ingredient, String> ingredient : recipe.getIngredients().entrySet()) {
@@ -51,30 +54,31 @@ public class Ingredients_Handler {
             }
 
             AiHandler.AIClient.askGemini(request, response -> {
-                JSONObject jsonIngrdients;
+                if (AiHandler.AIClient.ResponseStatus()) {
+                    JSONObject jsonIngrdients;
 
-                try {
-                    if (response == null || response.isEmpty())
-                        throw (new RuntimeException("empty response"));
+                    try {
+                        if (response.isEmpty())
+                            throw (new RuntimeException("empty response"));
 
-                    response = response.replace("json", "");
-                    response = response.replace("```", "");
-                    Log.i("myComments", response);
-                    jsonIngrdients = new JSONObject(response);
-                    java.util.Iterator<String> keys = jsonIngrdients.keys();
-                    Iterator<Ingredient> iterator = recipe.getIngredients().keySet().iterator();
+                        response = response.replace("json", "");
+                        response = response.replace("```", "");
+                        Log.i("myComments", response);
+                        jsonIngrdients = new JSONObject(response);
+                        java.util.Iterator<String> keys = jsonIngrdients.keys();
+                        Iterator<Ingredient> iterator = recipe.getIngredients().keySet().iterator();
 
-                    while (keys.hasNext() && iterator.hasNext()) {
-                        String key = keys.next();
+                        while (keys.hasNext() && iterator.hasNext()) {
+                            String key = keys.next();
 
-                        Ingredient ingredient = iterator.next();
-                        ingredient.setAmount(Float.parseFloat(jsonIngrdients.get(key).toString()));
+                            Ingredient ingredient = iterator.next();
+                            ingredient.setAmount(Float.parseFloat(jsonIngrdients.get(key).toString()));
+                        }
+                    } catch (JSONException e) {
+                        Log.i("myComments", e.toString());
                     }
-                } catch (JSONException e) {
-                    Log.i("myComments", e.toString());
-                } finally {
-                    aiSem.release();
                 }
+                aiSem.release();
             });
 
             try {
@@ -88,6 +92,10 @@ public class Ingredients_Handler {
         }).start();
     }
 
+    /**
+     * Retrieves ingredient details from Firebase. For new ingredients, it searches for them using an AI service.
+     * @param ingredients A set of ingredients to be fetched or created.
+     */
     public static void getIngredients(Set<Ingredient> ingredients)
     {
         new Thread(() -> {
@@ -119,7 +127,7 @@ public class Ingredients_Handler {
             if (!newIngredients.isEmpty()) {
                 Log.i("myComments", "new ingredients");
                 searchIngredients(newIngredients);
-                try { // no finally becuase ingSem is also released when there no new ingredients
+                try { 
                     aiSem.acquire();
                     FirebaseDataHandler.addIngredients(newIngredients);
 
@@ -142,6 +150,11 @@ public class Ingredients_Handler {
         }).start();
     }
 
+    /**
+     * Searches for the price and unit weight of a set of ingredients using an AI service.
+     * The AI is prompted to use specific websites for price information.
+     * @param ingredients A set of ingredients to search for.
+     */
     private static void searchIngredients(Set<Ingredient> ingredients) {
 
         String format = "i have the next list:";
@@ -156,53 +169,57 @@ public class Ingredients_Handler {
         }
 
 
-        format += "for each of these items give me the price of it and the weight per unit in grams, if it is a liquid in ml. answer me in a json format \"price\" : \"unit weight\". ( for example ,for the input 'tomato' output will be \"12.90 : 1000\"). do not respond with any other output except from the json itself.";
+        format += "for each of these items give me the price of it and the weight per unit in grams, if it is a liquid in ml. answer me in a json format \"price\" : \"unit weight (number only without measure unit)\". ( for example ,for the input 'tomato' output will be \"12.90 : 1000\"). do not respond with any other output except from the json itself.";
         format += "for prices use the websites: ";
         for (String source : MARKETS) {
             format += '\"' + source + "\", ";
         }
 
         AiHandler.AIClient.askGemini(format, response -> {
-            if ( !response.startsWith("error:") ) {
-                JSONObject jsonIngrdients;
-                response = response.replace("json", "");
-                response = response.replace("```", "");
-                Log.i("myComments", response);
-                try {
-                    jsonIngrdients = new JSONObject(response);
-                } catch (JSONException e) {
-                    throw new RuntimeException(e);
-                }
+            if (AiHandler.AIClient.ResponseStatus()) {
 
-                java.util.Iterator<String> keys = jsonIngrdients.keys();
-                Iterator<Ingredient> iterator = ingredients.iterator();
-
-                while (keys.hasNext() && iterator.hasNext()) {
-                    String key = keys.next();
-                    String valueString = null;
-
+                if ( !response.startsWith("error:") ) {
+                    JSONObject jsonIngrdients;
+                    response = response.replace("json", "");
+                    response = response.replace("```", "");
                     try {
-                        valueString = jsonIngrdients.getString(key);
+                        jsonIngrdients = new JSONObject(response);
                     } catch (JSONException e) {
+                        aiSem.release();
                         throw new RuntimeException(e);
                     }
-                    String[] parts = valueString.split(" : ");
-                    Ingredient ingredient;
-                    boolean free = false;
-                    do {
-                        ingredient = iterator.next();
-                        free = false;
-                        for (String item : FREE_ITEMS) {
-                            if (ingredient.getName().contains(item)) {
-                                ingredient.setPrice(0);
-                                free = true;
-                                break;
-                            }
-                        }
-                    } while (free);
 
-                    ingredient.setPrice(Float.parseFloat(parts[0]));
-                    ingredient.setUnitSize(Float.parseFloat(parts[1]));
+                    java.util.Iterator<String> keys = jsonIngrdients.keys();
+                    Iterator<Ingredient> iterator = ingredients.iterator();
+
+                    while (keys.hasNext() && iterator.hasNext()) {
+                        String key = keys.next();
+                        String valueString = null;
+
+                        try {
+                            valueString = jsonIngrdients.getString(key);
+                        } catch (JSONException e) {
+                            aiSem.release();
+                            throw new RuntimeException(e);
+                        }
+                        String[] parts = valueString.split(" : ");
+                        Ingredient ingredient;
+                        boolean free = false;
+                        do {
+                            ingredient = iterator.next();
+                            free = false;
+                            for (String item : FREE_ITEMS) {
+                                if (ingredient.getName().contains(item)) {
+                                    ingredient.setPrice(0);
+                                    free = true;
+                                    break;
+                                }
+                            }
+                        } while (free);
+
+                        ingredient.setPrice(Float.parseFloat(parts[0]));
+                        ingredient.setUnitSize(Float.parseFloat(parts[1]));
+                    }
                 }
             }
             aiSem.release();

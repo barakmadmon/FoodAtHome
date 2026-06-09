@@ -20,15 +20,18 @@
             android:id="@+id/restaurantListView"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:divider="@android:color/darker_gray"
-            android:dividerHeight="1dp" />
+            android:divider="@color/orange_500"
+            android:dividerHeight="2dp"
+            android:background="@color/cardview_dark_background"
+            />
 
         <LinearLayout
             android:id="@+id/dishesContainer"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:orientation="vertical"
-            android:visibility="gone">
+            android:visibility="gone"
+            android:background="@color/cardview_dark_background">
 
             <RelativeLayout
                 android:layout_width="match_parent"
@@ -49,15 +52,18 @@
                     android:layout_height="wrap_content"
                     android:layout_centerInParent="true"
                     android:textSize="18sp"
-                    android:textStyle="bold" />
+                    android:textStyle="bold"
+                    android:textColor="@color/white"/>
+
             </RelativeLayout>
 
             <ListView
                 android:id="@+id/dishesListView"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:divider="@android:color/darker_gray"
-                android:dividerHeight="1dp" />
+                android:divider="@color/orange_500"
+                android:dividerHeight="1dp"
+                android:textColor="@color/white"/>
         </LinearLayout>
             
     </FrameLayout>
